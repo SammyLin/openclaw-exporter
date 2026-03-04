@@ -1,25 +1,21 @@
-FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS builder
+FROM golang:1.22-alpine AS builder
 
-WORKDIR /app
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
 
-COPY pyproject.toml requirements.txt ./
-RUN uv venv /app/.venv && uv pip install --python /app/.venv/bin/python -r requirements.txt
+COPY . .
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /openclaw-exporter ./cmd/openclaw-exporter
 
-COPY openclaw_exporter/ openclaw_exporter/
+FROM alpine:3.19
 
-FROM python:3.11-slim
+RUN addgroup -g 1000 exporter && \
+    adduser -u 1000 -G exporter -s /bin/sh -D exporter
 
-RUN groupadd --gid 1000 exporter && \
-    useradd --uid 1000 --gid exporter --shell /bin/sh exporter
+COPY --from=builder /openclaw-exporter /usr/local/bin/openclaw-exporter
 
-COPY --from=builder /app/.venv /app/.venv
-COPY --from=builder /app/openclaw_exporter /app/openclaw_exporter
-
-WORKDIR /app
 USER exporter
-
-ENV PATH="/app/.venv/bin:$PATH"
 
 EXPOSE 9101
 
-ENTRYPOINT ["python", "-m", "openclaw_exporter"]
+ENTRYPOINT ["openclaw-exporter"]

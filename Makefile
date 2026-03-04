@@ -1,26 +1,33 @@
 .PHONY: build run test lint docker-build docker-run \
        stack-up stack-down stack-restart stack-status stack-logs \
-       metrics
+       metrics clean
+
+BINARY   := openclaw-exporter
+MODULE   := github.com/SammyLin/openclaw-exporter
+LDFLAGS  := -s -w
 
 # ── Exporter ────────────────────────────────────────────────
 
 build:
-	uv sync
+	go build -ldflags "$(LDFLAGS)" -o $(BINARY) ./cmd/openclaw-exporter
 
-run:
-	uv run python -m openclaw_exporter
+run: build
+	./$(BINARY)
 
 test:
-	uv run pytest
+	go test ./...
 
 lint:
-	uv run ruff check .
+	golangci-lint run
 
 docker-build:
 	docker build -t openclaw-exporter .
 
 docker-run:
 	docker run --rm -p 9101:9101 -v ~/.openclaw:/home/exporter/.openclaw:ro openclaw-exporter
+
+clean:
+	rm -f $(BINARY)
 
 # ── Monitoring Stack ────────────────────────────────────────
 

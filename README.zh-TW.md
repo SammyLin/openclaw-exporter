@@ -1,5 +1,9 @@
 # OpenClaw Exporter
 
+[![CI](https://github.com/SammyLin/openclaw-exporter/actions/workflows/ci.yml/badge.svg)](https://github.com/SammyLin/openclaw-exporter/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/SammyLin/openclaw-exporter)](https://goreportcard.com/report/github.com/SammyLin/openclaw-exporter)
+[![Docker Pulls](https://img.shields.io/docker/pulls/sammylin/openclaw-exporter)](https://hub.docker.com/r/sammylin/openclaw-exporter)
+
 [OpenClaw](https://github.com/nicholasgriffintn/openclaw) AI 代理的 Prometheus exporter — 代理狀態、排程任務監控、token 用量與工作區分析。
 
 ## 概述
@@ -8,12 +12,18 @@
 
 ## 前置需求
 
-- **Python 3.11+** 搭配 [uv](https://docs.astral.sh/uv/)
+- **Go 1.22+**（從原始碼建置時需要）
 - 一個正在運行的 **OpenClaw** 實例，資料位於 `~/.openclaw/`
 
 ## 快速開始
 
-### Docker
+### Docker（從 Docker Hub）
+
+```bash
+docker run --rm -p 9101:9101 -v ~/.openclaw:/home/exporter/.openclaw:ro sammylin/openclaw-exporter
+```
+
+### Docker（本地建置）
 
 ```bash
 docker build -t openclaw-exporter .
@@ -23,15 +33,16 @@ docker run --rm -p 9101:9101 -v ~/.openclaw:/home/exporter/.openclaw:ro openclaw
 ### 從原始碼
 
 ```bash
-uv sync
-uv run python -m openclaw_exporter
+make build
+./openclaw-exporter
 ```
 
-### pip 安裝
+### 預編譯二進位檔
+
+從 [Releases](https://github.com/SammyLin/openclaw-exporter/releases) 下載後直接執行：
 
 ```bash
-pip install .
-openclaw-exporter
+./openclaw-exporter
 ```
 
 ## 命令列參數
@@ -41,7 +52,7 @@ openclaw-exporter
 | `--web.listen-address` | `EXPORTER_LISTEN_ADDRESS` | `:9101` | 監聽地址 |
 | `--web.telemetry-path` | `EXPORTER_TELEMETRY_PATH` | `/metrics` | 指標端點路徑 |
 | `--openclaw.home` | `OPENCLAW_HOME` | `~/.openclaw` | OpenClaw 資料目錄 |
-| `--log.level` | `EXPORTER_LOG_LEVEL` | `info` | 日誌等級（debug/info/warning/error） |
+| `--log.level` | `EXPORTER_LOG_LEVEL` | `info` | 日誌等級（debug/info/warn/error） |
 
 ## 匯出指標
 
@@ -123,8 +134,10 @@ make stack-up
 ## 從原始碼建置
 
 ```bash
-make build          # uv sync
-make run            # 本地執行 exporter
+make build          # 編譯二進位檔
+make run            # 編譯並執行 exporter
+make test           # 執行測試
+make lint           # 執行 golangci-lint
 make docker-build   # 建置 Docker 映像
 make docker-run     # 以 Docker 執行
 

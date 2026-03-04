@@ -1,5 +1,9 @@
 # OpenClaw Exporter
 
+[![CI](https://github.com/SammyLin/openclaw-exporter/actions/workflows/ci.yml/badge.svg)](https://github.com/SammyLin/openclaw-exporter/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/SammyLin/openclaw-exporter)](https://goreportcard.com/report/github.com/SammyLin/openclaw-exporter)
+[![Docker Pulls](https://img.shields.io/docker/pulls/sammylin/openclaw-exporter)](https://hub.docker.com/r/sammylin/openclaw-exporter)
+
 Languages: English | [繁體中文](README.zh-TW.md)
 
 Prometheus exporter for [OpenClaw](https://github.com/nicholasgriffintn/openclaw) AI agent metrics — agent status, cron job monitoring, token usage, and workspace analytics.
@@ -10,12 +14,18 @@ Prometheus exporter for [OpenClaw](https://github.com/nicholasgriffintn/openclaw
 
 ## Prerequisites
 
-- **Python 3.11+** with [uv](https://docs.astral.sh/uv/)
+- **Go 1.22+** (for building from source)
 - A running **OpenClaw** instance with data in `~/.openclaw/`
 
 ## Getting Started
 
-### Docker
+### Docker (from Docker Hub)
+
+```bash
+docker run --rm -p 9101:9101 -v ~/.openclaw:/home/exporter/.openclaw:ro sammylin/openclaw-exporter
+```
+
+### Docker (build locally)
 
 ```bash
 docker build -t openclaw-exporter .
@@ -25,15 +35,16 @@ docker run --rm -p 9101:9101 -v ~/.openclaw:/home/exporter/.openclaw:ro openclaw
 ### From source
 
 ```bash
-uv sync
-uv run python -m openclaw_exporter
+make build
+./openclaw-exporter
 ```
 
-### pip install
+### Pre-built binary
+
+Download from [Releases](https://github.com/SammyLin/openclaw-exporter/releases) and run directly:
 
 ```bash
-pip install .
-openclaw-exporter
+./openclaw-exporter
 ```
 
 ## Command-Line Flags
@@ -43,7 +54,7 @@ openclaw-exporter
 | `--web.listen-address` | `EXPORTER_LISTEN_ADDRESS` | `:9101` | Address to listen on |
 | `--web.telemetry-path` | `EXPORTER_TELEMETRY_PATH` | `/metrics` | Metrics endpoint path |
 | `--openclaw.home` | `OPENCLAW_HOME` | `~/.openclaw` | OpenClaw data directory |
-| `--log.level` | `EXPORTER_LOG_LEVEL` | `info` | Log level (debug/info/warning/error) |
+| `--log.level` | `EXPORTER_LOG_LEVEL` | `info` | Log level (debug/info/warn/error) |
 
 ## Exported Metrics
 
@@ -125,8 +136,10 @@ Dashboards are auto-provisioned when using the stack. See `deploy/docker-compose
 ## Building from Source
 
 ```bash
-make build          # uv sync
-make run            # Run exporter locally
+make build          # Build binary
+make run            # Build and run exporter
+make test           # Run tests
+make lint           # Run golangci-lint
 make docker-build   # Build Docker image
 make docker-run     # Run in Docker
 

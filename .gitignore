@@ -1,11 +1,5 @@
 .env
 *.log
-__pycache__/
-*.pyc
-.venv/
-venv/
-dist/
-*.egg-info/
+/openclaw-exporter
 grafana-data/
 prometheus-data/
-.ruff_cache/

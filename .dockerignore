@@ -1,12 +1,9 @@
 .git
 .env
-.venv
-venv
-__pycache__
-*.pyc
 *.log
+openclaw-exporter
 grafana-data
 prometheus-data
 deploy/
 .claude/
-.ruff_cache/
+.golangci.yml
