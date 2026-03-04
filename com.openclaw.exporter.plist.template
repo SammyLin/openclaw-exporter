@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.openclaw.exporter</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>INSTALL_DIR/.venv/bin/python</string>
+        <string>INSTALL_DIR/openclaw_exporter.py</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>INSTALL_DIR</string>
+    <key>StandardOutPath</key>
+    <string>INSTALL_DIR/exporter.log</string>
+    <key>StandardErrorPath</key>
+    <string>INSTALL_DIR/exporter.log</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>EXPORTER_PORT</key>
+        <string>9101</string>
+        <key>OPENCLAW_HOME</key>
+        <string>OPENCLAW_HOME_DIR</string>
+    </dict>
+</dict>
+</plist>

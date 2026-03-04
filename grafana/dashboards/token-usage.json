@@ -1,0 +1,232 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+      "id": 100,
+      "title": "📊 總覽（今日）",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]}, "unit": "short"}},
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 1},
+      "id": 1,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "textMode": "auto"},
+      "targets": [{"expr": "sum(increase(openclaw_tokens_total{openclaw_token=\"input\"}[1d]))", "legendFormat": "Input", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}}],
+      "title": "今日總 Input Tokens",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "short"}},
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 1},
+      "id": 2,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "textMode": "auto"},
+      "targets": [{"expr": "sum(increase(openclaw_tokens_total{openclaw_token=\"output\"}[1d]))", "legendFormat": "Output", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}}],
+      "title": "今日總 Output Tokens",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "purple", "value": null}]}, "unit": "short"}},
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 1},
+      "id": 3,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "textMode": "auto"},
+      "targets": [{"expr": "sum(increase(openclaw_tokens_total{openclaw_token=\"cache_read\"}[1d]))", "legendFormat": "Cache Hit", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}}],
+      "title": "今日 Cache Hit Tokens",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "orange", "value": null}]}, "unit": "currencyUSD"}},
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 1},
+      "id": 4,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "textMode": "auto"},
+      "targets": [{"expr": "sum(increase(openclaw_cost_usd_total[1d]))", "legendFormat": "Cost", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}}],
+      "title": "今日總費用 USD",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5},
+      "id": 101,
+      "title": "📈 5 天每日用量趨勢（依 Model）",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "hideFrom": {"tooltip": false, "viz": false, "legend": false}, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "short"}},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 6},
+      "id": 5,
+      "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {"expr": "sum by (openclaw_model) (increase(openclaw_tokens_total{openclaw_token=\"input\"}[1d]))", "legendFormat": "{{openclaw_model}} Input", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}},
+        {"expr": "sum by (openclaw_model) (increase(openclaw_tokens_total{openclaw_token=\"output\"}[1d]))", "legendFormat": "{{openclaw_model}} Output", "refId": "B", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}}
+      ],
+      "timeFrom": "5d",
+      "title": "每日 Token 用量趨勢",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 14},
+      "id": 102,
+      "title": "💸 費用 by Model",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "unit": "currencyUSD"}},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 15},
+      "id": 6,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true, "values": ["value", "percent"]}, "pieType": "donut", "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "tooltip": {"mode": "single", "sort": "none"}},
+      "targets": [{"expr": "sum by (openclaw_model) (increase(openclaw_cost_usd_total[1d]))", "legendFormat": "{{openclaw_model}}", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}, "instant": true}],
+      "title": "今日費用 by Model",
+      "type": "piechart"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "currencyUSD"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 15},
+      "id": 7,
+      "options": {"displayMode": "gradient", "minVizHeight": 10, "minVizWidth": 0, "orientation": "horizontal", "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "showUnfilled": true, "text": {}},
+      "targets": [{"expr": "sum by (openclaw_model) (increase(openclaw_cost_usd_total[7d]))", "legendFormat": "{{openclaw_model}}", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}, "instant": true}],
+      "title": "7天累計費用 by Model",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "currencyUSD"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 15},
+      "id": 8,
+      "options": {"displayMode": "gradient", "minVizHeight": 10, "minVizWidth": 0, "orientation": "horizontal", "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "showUnfilled": true, "text": {}},
+      "targets": [{"expr": "sum by (openclaw_channel) (increase(openclaw_cost_usd_total[1d]))", "legendFormat": "{{openclaw_channel}}", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}, "instant": true}],
+      "title": "今日費用 by Channel",
+      "type": "bargauge"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 23},
+      "id": 103,
+      "title": "🗂️ Workspace Context 大小",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+      "id": 9,
+      "options": {"displayMode": "gradient", "minVizHeight": 10, "minVizWidth": 0, "orientation": "horizontal", "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "showUnfilled": true, "text": {}},
+      "targets": [{"expr": "openclaw_md_workspace_total_tokens_estimated", "legendFormat": "{{workspace}}", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}, "instant": true}],
+      "title": "Workspace .md 估算 Tokens",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}}, "overrides": [{"matcher": {"id": "byName", "options": "Tokens"}, "properties": [{"id": "custom.width", "value": 120}]}, {"matcher": {"id": "byName", "options": "Bytes"}, "properties": [{"id": "custom.width", "value": 100}, {"id": "unit", "value": "decbytes"}]}]},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+      "id": 10,
+      "options": {"showHeader": true, "footer": {"show": false, "reducer": ["sum"], "fields": ""}, "sortBy": [{"displayName": "Tokens", "desc": true}]},
+      "targets": [
+        {"expr": "openclaw_md_file_tokens_estimated", "legendFormat": "", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}, "instant": true, "format": "table"},
+        {"expr": "openclaw_md_file_bytes", "legendFormat": "", "refId": "B", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}, "instant": true, "format": "table"}
+      ],
+      "transformations": [
+        {"id": "merge", "options": {}},
+        {"id": "organize", "options": {"excludeByName": {"Time": true, "__name__": true, "instance": true, "job": true, "__name__ 1": true, "__name__ 2": true, "Time 1": true, "Time 2": true, "instance 1": true, "instance 2": true, "job 1": true, "job 2": true}, "renameByName": {"workspace": "Workspace", "filename": "Filename", "Value #A": "Tokens", "Value #B": "Bytes"}, "indexByName": {"workspace": 0, "filename": 1, "Value #A": 2, "Value #B": 3}}}
+      ],
+      "title": "各 .md 檔案大小",
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 32},
+      "id": 104,
+      "title": "⏰ Cron Job Token 消耗",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 33},
+      "id": 11,
+      "options": {"displayMode": "gradient", "minVizHeight": 10, "minVizWidth": 0, "orientation": "horizontal", "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "showUnfilled": true, "text": {}},
+      "targets": [{"expr": "openclaw_cron_session_total_tokens_last", "legendFormat": "{{cron_name}}", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}, "instant": true}],
+      "title": "Cron Job 每次 Token 用量",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}}, "overrides": [{"matcher": {"id": "byName", "options": "Cost"}, "properties": [{"id": "unit", "value": "currencyUSD"}, {"id": "decimals", "value": 4}]}]},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 33},
+      "id": 12,
+      "options": {"showHeader": true, "footer": {"show": false, "reducer": ["sum"], "fields": ""}, "sortBy": [{"displayName": "Input", "desc": true}]},
+      "targets": [
+        {"expr": "openclaw_cron_session_tokens_last{token_type=\"input\"}", "legendFormat": "", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}, "instant": true, "format": "table"},
+        {"expr": "openclaw_cron_session_tokens_last{token_type=\"output\"}", "legendFormat": "", "refId": "B", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}, "instant": true, "format": "table"},
+        {"expr": "openclaw_cron_session_cost_last_usd", "legendFormat": "", "refId": "C", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}, "instant": true, "format": "table"}
+      ],
+      "transformations": [
+        {"id": "merge", "options": {}},
+        {"id": "organize", "options": {"excludeByName": {"Time": true, "Time 1": true, "Time 2": true, "Time 3": true, "__name__": true, "__name__ 1": true, "__name__ 2": true, "__name__ 3": true, "instance": true, "instance 1": true, "instance 2": true, "instance 3": true, "job": true, "job 1": true, "job 2": true, "job 3": true, "token_type": true, "token_type 1": true, "token_type 2": true}, "renameByName": {"agent": "Agent", "cron_name": "Cron Name", "Value #A": "Input", "Value #B": "Output", "Value #C": "Cost"}, "indexByName": {"agent": 0, "cron_name": 1, "Value #A": 2, "Value #B": 3, "Value #C": 4}}}
+      ],
+      "title": "Cron Job 詳細費用",
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 41},
+      "id": 105,
+      "title": "🤖 Agent Session Token 分析",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 42},
+      "id": 13,
+      "options": {"displayMode": "gradient", "minVizHeight": 10, "minVizWidth": 0, "orientation": "horizontal", "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "showUnfilled": true, "text": {}},
+      "targets": [{"expr": "openclaw_agent_session_avg_tokens{token_type=\"input\"} + openclaw_agent_session_avg_tokens{token_type=\"output\"}", "legendFormat": "{{agent}}", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}, "instant": true}],
+      "title": "Agent 平均 Session Token",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}}, "overrides": [{"matcher": {"id": "byName", "options": "Cost"}, "properties": [{"id": "unit", "value": "currencyUSD"}, {"id": "decimals", "value": 4}]}]},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 42},
+      "id": 14,
+      "options": {"showHeader": true, "footer": {"show": false, "reducer": ["sum"], "fields": ""}, "sortBy": [{"displayName": "Input", "desc": true}]},
+      "targets": [
+        {"expr": "openclaw_agent_session_last_tokens{token_type=\"input\"}", "legendFormat": "", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}, "instant": true, "format": "table"},
+        {"expr": "openclaw_agent_session_last_tokens{token_type=\"output\"}", "legendFormat": "", "refId": "B", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}, "instant": true, "format": "table"},
+        {"expr": "openclaw_agent_session_last_cost_usd", "legendFormat": "", "refId": "C", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}, "instant": true, "format": "table"}
+      ],
+      "transformations": [
+        {"id": "merge", "options": {}},
+        {"id": "organize", "options": {"excludeByName": {"Time": true, "Time 1": true, "Time 2": true, "Time 3": true, "__name__": true, "__name__ 1": true, "__name__ 2": true, "__name__ 3": true, "instance": true, "instance 1": true, "instance 2": true, "instance 3": true, "job": true, "job 1": true, "job 2": true, "job 3": true, "token_type": true, "token_type 1": true, "token_type 2": true}, "renameByName": {"agent": "Agent", "Value #A": "Input", "Value #B": "Output", "Value #C": "Cost"}, "indexByName": {"agent": 0, "Value #A": 1, "Value #B": 2, "Value #C": 3}}}
+      ],
+      "title": "Agent 最近 Session 費用",
+      "type": "table"
+    }
+  ],
+  "refresh": "5m",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["openclaw", "tokens"],
+  "templating": {"list": []},
+  "time": {"from": "now-5d", "to": "now"},
+  "timepicker": {},
+  "timezone": "Asia/Taipei",
+  "title": "💰 Token Usage & Cost",
+  "uid": "token-usage",
+  "version": 1,
+  "weekStart": ""
+}

@@ -1,0 +1,8 @@
+[project]
+name = "monitoring"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.14"
+dependencies = [
+    "prometheus-client>=0.24.1",
+]
