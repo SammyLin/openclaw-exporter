@@ -1,5 +1,11 @@
 .env
 *.log
 __pycache__/
+*.pyc
 .venv/
 venv/
+dist/
+*.egg-info/
+grafana-data/
+prometheus-data/
+.ruff_cache/

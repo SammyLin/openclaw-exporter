@@ -1,0 +1,12 @@
+.git
+.env
+.venv
+venv
+__pycache__
+*.pyc
+*.log
+grafana-data
+prometheus-data
+deploy/
+.claude/
+.ruff_cache/
