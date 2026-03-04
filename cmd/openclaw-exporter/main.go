@@ -9,6 +9,7 @@ import (
 
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/exporter-toolkit/web"
 
@@ -63,8 +64,8 @@ func main() {
 	// Create custom registry
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(
-		prometheus.NewGoCollector(),
-		prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}),
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 		collector.NewAgentCollector(home),
 		collector.NewCronCollector(home),
 		collector.NewWorkspaceCollector(home),
