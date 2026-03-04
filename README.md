@@ -1,6 +1,6 @@
 # OpenClaw Exporter
 
-[![CI](https://github.com/SammyLin/openclaw-exporter/actions/workflows/ci.yml/badge.svg)](https://github.com/SammyLin/openclaw-exporter/actions/workflows/ci.yml)
+[![Tests](https://github.com/SammyLin/openclaw-exporter/actions/workflows/tests.yml/badge.svg)](https://github.com/SammyLin/openclaw-exporter/actions/workflows/tests.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/SammyLin/openclaw-exporter)](https://goreportcard.com/report/github.com/SammyLin/openclaw-exporter)
 [![Docker Pulls](https://img.shields.io/docker/pulls/sammylin/openclaw-exporter)](https://hub.docker.com/r/sammylin/openclaw-exporter)
 
