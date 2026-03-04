@@ -11,7 +11,7 @@
       "collapsed": false,
       "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
       "id": 100,
-      "title": "📊 總覽（今日）",
+      "title": "📊 Overview (Today)",
       "type": "row"
     },
     {
@@ -21,7 +21,7 @@
       "id": 1,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "textMode": "auto"},
       "targets": [{"expr": "sum(increase(openclaw_tokens_total{openclaw_token=\"input\"}[1d]))", "legendFormat": "Input", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}}],
-      "title": "今日總 Input Tokens",
+      "title": "Input Tokens Today",
       "type": "stat"
     },
     {
@@ -31,7 +31,7 @@
       "id": 2,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "textMode": "auto"},
       "targets": [{"expr": "sum(increase(openclaw_tokens_total{openclaw_token=\"output\"}[1d]))", "legendFormat": "Output", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}}],
-      "title": "今日總 Output Tokens",
+      "title": "Output Tokens Today",
       "type": "stat"
     },
     {
@@ -41,7 +41,7 @@
       "id": 3,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "textMode": "auto"},
       "targets": [{"expr": "sum(increase(openclaw_tokens_total{openclaw_token=\"cache_read\"}[1d]))", "legendFormat": "Cache Hit", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}}],
-      "title": "今日 Cache Hit Tokens",
+      "title": "Cache Hit Tokens Today",
       "type": "stat"
     },
     {
@@ -51,14 +51,14 @@
       "id": 4,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "textMode": "auto"},
       "targets": [{"expr": "sum(increase(openclaw_cost_usd_total[1d]))", "legendFormat": "Cost", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}}],
-      "title": "今日總費用 USD",
+      "title": "Total Cost Today (USD)",
       "type": "stat"
     },
     {
       "collapsed": false,
       "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5},
       "id": 101,
-      "title": "📈 5 天每日用量趨勢（依 Model）",
+      "title": "📈 5-Day Token Trend by Model",
       "type": "row"
     },
     {
@@ -72,14 +72,14 @@
         {"expr": "sum by (openclaw_model) (increase(openclaw_tokens_total{openclaw_token=\"output\"}[1d]))", "legendFormat": "{{openclaw_model}} Output", "refId": "B", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}}
       ],
       "timeFrom": "5d",
-      "title": "每日 Token 用量趨勢",
+      "title": "Daily Token Trend",
       "type": "timeseries"
     },
     {
       "collapsed": false,
       "gridPos": {"h": 1, "w": 24, "x": 0, "y": 14},
       "id": 102,
-      "title": "💸 費用 by Model",
+      "title": "💸 Cost by Model",
       "type": "row"
     },
     {
@@ -89,7 +89,7 @@
       "id": 6,
       "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true, "values": ["value", "percent"]}, "pieType": "donut", "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "tooltip": {"mode": "single", "sort": "none"}},
       "targets": [{"expr": "sum by (openclaw_model) (increase(openclaw_cost_usd_total[1d]))", "legendFormat": "{{openclaw_model}}", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}, "instant": true}],
-      "title": "今日費用 by Model",
+      "title": "Cost Today by Model",
       "type": "piechart"
     },
     {
@@ -99,7 +99,7 @@
       "id": 7,
       "options": {"displayMode": "gradient", "minVizHeight": 10, "minVizWidth": 0, "orientation": "horizontal", "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "showUnfilled": true, "text": {}},
       "targets": [{"expr": "sum by (openclaw_model) (increase(openclaw_cost_usd_total[7d]))", "legendFormat": "{{openclaw_model}}", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}, "instant": true}],
-      "title": "7天累計費用 by Model",
+      "title": "7-Day Cumulative Cost by Model",
       "type": "bargauge"
     },
     {
@@ -109,14 +109,14 @@
       "id": 8,
       "options": {"displayMode": "gradient", "minVizHeight": 10, "minVizWidth": 0, "orientation": "horizontal", "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "showUnfilled": true, "text": {}},
       "targets": [{"expr": "sum by (openclaw_channel) (increase(openclaw_cost_usd_total[1d]))", "legendFormat": "{{openclaw_channel}}", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}, "instant": true}],
-      "title": "今日費用 by Channel",
+      "title": "Cost Today by Channel",
       "type": "bargauge"
     },
     {
       "collapsed": false,
       "gridPos": {"h": 1, "w": 24, "x": 0, "y": 23},
       "id": 103,
-      "title": "🗂️ Workspace Context 大小",
+      "title": "🗂️ Workspace Context Size",
       "type": "row"
     },
     {
@@ -126,7 +126,7 @@
       "id": 9,
       "options": {"displayMode": "gradient", "minVizHeight": 10, "minVizWidth": 0, "orientation": "horizontal", "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "showUnfilled": true, "text": {}},
       "targets": [{"expr": "openclaw_md_workspace_total_tokens_estimated", "legendFormat": "{{workspace}}", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}, "instant": true}],
-      "title": "Workspace .md 估算 Tokens",
+      "title": "Workspace Estimated Tokens",
       "type": "bargauge"
     },
     {
@@ -143,14 +143,14 @@
         {"id": "merge", "options": {}},
         {"id": "organize", "options": {"excludeByName": {"Time": true, "__name__": true, "instance": true, "job": true, "__name__ 1": true, "__name__ 2": true, "Time 1": true, "Time 2": true, "instance 1": true, "instance 2": true, "job 1": true, "job 2": true}, "renameByName": {"workspace": "Workspace", "filename": "Filename", "Value #A": "Tokens", "Value #B": "Bytes"}, "indexByName": {"workspace": 0, "filename": 1, "Value #A": 2, "Value #B": 3}}}
       ],
-      "title": "各 .md 檔案大小",
+      "title": "MD File Sizes",
       "type": "table"
     },
     {
       "collapsed": false,
       "gridPos": {"h": 1, "w": 24, "x": 0, "y": 32},
       "id": 104,
-      "title": "⏰ Cron Job Token 消耗",
+      "title": "⏰ Cron Job Token Usage",
       "type": "row"
     },
     {
@@ -160,7 +160,7 @@
       "id": 11,
       "options": {"displayMode": "gradient", "minVizHeight": 10, "minVizWidth": 0, "orientation": "horizontal", "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "showUnfilled": true, "text": {}},
       "targets": [{"expr": "openclaw_cron_session_total_tokens_last", "legendFormat": "{{cron_name}}", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}, "instant": true}],
-      "title": "Cron Job 每次 Token 用量",
+      "title": "Cron Job Tokens per Run",
       "type": "bargauge"
     },
     {
@@ -178,14 +178,14 @@
         {"id": "merge", "options": {}},
         {"id": "organize", "options": {"excludeByName": {"Time": true, "Time 1": true, "Time 2": true, "Time 3": true, "__name__": true, "__name__ 1": true, "__name__ 2": true, "__name__ 3": true, "instance": true, "instance 1": true, "instance 2": true, "instance 3": true, "job": true, "job 1": true, "job 2": true, "job 3": true, "token_type": true, "token_type 1": true, "token_type 2": true}, "renameByName": {"agent": "Agent", "cron_name": "Cron Name", "Value #A": "Input", "Value #B": "Output", "Value #C": "Cost"}, "indexByName": {"agent": 0, "cron_name": 1, "Value #A": 2, "Value #B": 3, "Value #C": 4}}}
       ],
-      "title": "Cron Job 詳細費用",
+      "title": "Cron Job Cost Detail",
       "type": "table"
     },
     {
       "collapsed": false,
       "gridPos": {"h": 1, "w": 24, "x": 0, "y": 41},
       "id": 105,
-      "title": "🤖 Agent Session Token 分析",
+      "title": "🤖 Agent Session Token Analysis",
       "type": "row"
     },
     {
@@ -195,7 +195,7 @@
       "id": 13,
       "options": {"displayMode": "gradient", "minVizHeight": 10, "minVizWidth": 0, "orientation": "horizontal", "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "showUnfilled": true, "text": {}},
       "targets": [{"expr": "openclaw_agent_session_avg_tokens{token_type=\"input\"} + openclaw_agent_session_avg_tokens{token_type=\"output\"}", "legendFormat": "{{agent}}", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}, "instant": true}],
-      "title": "Agent 平均 Session Token",
+      "title": "Agent Avg Session Tokens",
       "type": "bargauge"
     },
     {
@@ -213,7 +213,7 @@
         {"id": "merge", "options": {}},
         {"id": "organize", "options": {"excludeByName": {"Time": true, "Time 1": true, "Time 2": true, "Time 3": true, "__name__": true, "__name__ 1": true, "__name__ 2": true, "__name__ 3": true, "instance": true, "instance 1": true, "instance 2": true, "instance 3": true, "job": true, "job 1": true, "job 2": true, "job 3": true, "token_type": true, "token_type 1": true, "token_type 2": true}, "renameByName": {"agent": "Agent", "Value #A": "Input", "Value #B": "Output", "Value #C": "Cost"}, "indexByName": {"agent": 0, "Value #A": 1, "Value #B": 2, "Value #C": 3}}}
       ],
-      "title": "Agent 最近 Session 費用",
+      "title": "Agent Latest Session Cost",
       "type": "table"
     }
   ],

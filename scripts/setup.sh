@@ -40,7 +40,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     launchctl start com.openclaw.exporter || true
     echo "  launchd service loaded"
 else
-    echo "[3/5] Non-macOS: run exporter manually:"
+    echo "[3/5] Non-macOS detected. Run exporter manually:"
     echo "  uv run python openclaw_exporter.py &"
 fi
 
@@ -55,7 +55,7 @@ sleep 5
 bash scripts/health-check.sh
 
 echo ""
-echo "✅ Setup complete!"
+echo "Setup complete!"
 echo "   Grafana:    http://localhost:3000"
 echo "   Prometheus: http://localhost:9090"
 echo "   Exporter:   http://localhost:9101/metrics"
