@@ -72,11 +72,11 @@ func (c *AgentCollector) Collect(ch chan<- prometheus.Metric) {
 		agentPath := filepath.Join(agentsDir, name)
 
 		sessions := countSessions(agentPath)
-		state, secondsAgo := getAgentState(agentPath)
+		state, timestamp := getAgentState(agentPath)
 
 		ch <- prometheus.MustNewConstMetric(agentSessionsDesc, prometheus.GaugeValue, float64(sessions), name)
 		ch <- prometheus.MustNewConstMetric(agentStateDesc, prometheus.GaugeValue, StateMap[state], name)
-		ch <- prometheus.MustNewConstMetric(agentLastActivityTimestampDesc, prometheus.GaugeValue, float64(time.Now().Unix())-secondsAgo, name)
+		ch <- prometheus.MustNewConstMetric(agentLastActivityTimestampDesc, prometheus.GaugeValue, float64(timestamp), name)
 		totalSessions += float64(sessions)
 	}
 
@@ -92,11 +92,11 @@ func countSessions(agentPath string) int {
 	return len(matches)
 }
 
-func getAgentState(agentPath string) (string, float64) {
+func getAgentState(agentPath string) (string, int64) {
 	sessionsDir := filepath.Join(agentPath, "sessions")
 	matches, err := filepath.Glob(filepath.Join(sessionsDir, "*.jsonl"))
 	if err != nil || len(matches) == 0 {
-		return "idle", 999
+		return "idle", 0
 	}
 
 	// Find the most recently modified file
@@ -113,19 +113,19 @@ func getAgentState(agentPath string) (string, float64) {
 		files = append(files, fileInfo{path: m, modTime: info.ModTime()})
 	}
 	if len(files) == 0 {
-		return "idle", 999
+		return "idle", 0
 	}
 
 	sort.Slice(files, func(i, j int) bool {
 		return files[i].modTime.After(files[j].modTime)
 	})
 	latest := files[0]
-	secondsAgo := time.Since(latest.modTime).Seconds()
+	timestamp := latest.modTime.Unix()
 
 	lines, err := filereader.TailLines(latest.path, 8192)
 	if err != nil {
 		slog.Debug("Failed to read session file", "path", latest.path, "err", err)
-		return "idle", secondsAgo
+		return "idle", timestamp
 	}
 
 	// Check last 10 lines in reverse
@@ -134,6 +134,8 @@ func getAgentState(agentPath string) (string, float64) {
 		start = 0
 	}
 	tail := lines[start:]
+
+	secondsAgo := time.Now().Unix() - timestamp
 
 	for i := len(tail) - 1; i >= 0; i-- {
 		var data struct {
@@ -153,18 +155,18 @@ func getAgentState(agentPath string) (string, float64) {
 		if err := json.Unmarshal(data.Message.Content, &contents); err == nil {
 			for _, ct := range contents {
 				if ct.Type == "toolCall" && secondsAgo < 60 {
-					return "working", secondsAgo
+					return "working", timestamp
 				}
 				if ct.Type == "thinking" && secondsAgo < 120 {
-					return "thinking", secondsAgo
+					return "thinking", timestamp
 				}
 			}
 		}
 
 		if data.Message.Role == "assistant" && secondsAgo < 300 {
-			return "working", secondsAgo
+			return "working", timestamp
 		}
 	}
 
-	return "idle", secondsAgo
+	return "idle", timestamp
 }
