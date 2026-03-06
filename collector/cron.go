@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -31,19 +30,9 @@ var (
 		"Unix timestamp of last run.",
 		[]string{"job_name", "job_id"}, nil,
 	)
-	cronJobLastRunAgeDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "cron_job", "last_run_age_seconds"),
-		"Seconds since last run.",
-		[]string{"job_name", "job_id"}, nil,
-	)
 	cronJobNextRunAtDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "cron_job", "next_run_at_seconds"),
 		"Unix timestamp of next run.",
-		[]string{"job_name", "job_id"}, nil,
-	)
-	cronJobNextRunInDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "cron_job", "next_run_in_seconds"),
-		"Seconds until next run.",
 		[]string{"job_name", "job_id"}, nil,
 	)
 	cronJobConsecutiveErrorsDesc = prometheus.NewDesc(
@@ -52,8 +41,8 @@ var (
 		[]string{"job_name", "job_id"}, nil,
 	)
 	cronJobLastDurationDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "cron_job", "last_duration_ms"),
-		"Last run duration in ms.",
+		prometheus.BuildFQName(namespace, "cron_job", "last_duration_seconds"),
+		"Last run duration in seconds.",
 		[]string{"job_name", "job_id"}, nil,
 	)
 	cronJobLastDeliveredDesc = prometheus.NewDesc(
@@ -104,9 +93,7 @@ func (c *CronCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- cronJobsEnabledDesc
 	ch <- cronJobEnabledDesc
 	ch <- cronJobLastRunAtDesc
-	ch <- cronJobLastRunAgeDesc
 	ch <- cronJobNextRunAtDesc
-	ch <- cronJobNextRunInDesc
 	ch <- cronJobConsecutiveErrorsDesc
 	ch <- cronJobLastDurationDesc
 	ch <- cronJobLastDeliveredDesc
@@ -116,7 +103,6 @@ func (c *CronCollector) Describe(ch chan<- *prometheus.Desc) {
 // Collect gathers cron job metrics fresh on each scrape.
 func (c *CronCollector) Collect(ch chan<- prometheus.Metric) {
 	jobs := getCronJobs(c.home)
-	now := time.Now().Unix()
 
 	ch <- prometheus.MustNewConstMetric(cronJobsTotalDesc, prometheus.GaugeValue, float64(len(jobs)))
 
@@ -147,19 +133,17 @@ func (c *CronCollector) Collect(ch chan<- prometheus.Metric) {
 		if job.State.LastRunAtMs != nil {
 			lastRunSec := *job.State.LastRunAtMs / 1000
 			ch <- prometheus.MustNewConstMetric(cronJobLastRunAtDesc, prometheus.GaugeValue, lastRunSec, jobName, jobID)
-			ch <- prometheus.MustNewConstMetric(cronJobLastRunAgeDesc, prometheus.GaugeValue, float64(now)-lastRunSec, jobName, jobID)
 		}
 
 		if job.State.NextRunAtMs != nil {
 			nextRunSec := *job.State.NextRunAtMs / 1000
 			ch <- prometheus.MustNewConstMetric(cronJobNextRunAtDesc, prometheus.GaugeValue, nextRunSec, jobName, jobID)
-			ch <- prometheus.MustNewConstMetric(cronJobNextRunInDesc, prometheus.GaugeValue, nextRunSec-float64(now), jobName, jobID)
 		}
 
 		ch <- prometheus.MustNewConstMetric(cronJobConsecutiveErrorsDesc, prometheus.GaugeValue, job.State.ConsecutiveErrors, jobName, jobID)
 
 		if job.State.LastDurationMs != nil {
-			ch <- prometheus.MustNewConstMetric(cronJobLastDurationDesc, prometheus.GaugeValue, *job.State.LastDurationMs, jobName, jobID)
+			ch <- prometheus.MustNewConstMetric(cronJobLastDurationDesc, prometheus.GaugeValue, *job.State.LastDurationMs/1000, jobName, jobID)
 		}
 
 		delivered := 0.0

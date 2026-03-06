@@ -536,7 +536,7 @@
       },
       "targets": [
         {
-          "expr": "openclaw_agent_last_activity_seconds",
+          "expr": "time() - openclaw_agent_last_activity_timestamp_seconds",
           "legendFormat": "{{agent_name}}",
           "refId": "A",
           "datasource": {

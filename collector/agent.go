@@ -29,9 +29,9 @@ var (
 		"Agent state (0=idle, 1=working, 2=thinking, 3=error).",
 		[]string{"agent_name"}, nil,
 	)
-	agentLastActivityDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "agent", "last_activity_seconds"),
-		"Seconds since last activity.",
+	agentLastActivityTimestampDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "agent", "last_activity_timestamp_seconds"),
+		"Unix timestamp of last activity.",
 		[]string{"agent_name"}, nil,
 	)
 )
@@ -51,7 +51,7 @@ func (c *AgentCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- activeSessionsDesc
 	ch <- agentSessionsDesc
 	ch <- agentStateDesc
-	ch <- agentLastActivityDesc
+	ch <- agentLastActivityTimestampDesc
 }
 
 // Collect gathers agent metrics fresh on each scrape.
@@ -76,7 +76,7 @@ func (c *AgentCollector) Collect(ch chan<- prometheus.Metric) {
 
 		ch <- prometheus.MustNewConstMetric(agentSessionsDesc, prometheus.GaugeValue, float64(sessions), name)
 		ch <- prometheus.MustNewConstMetric(agentStateDesc, prometheus.GaugeValue, StateMap[state], name)
-		ch <- prometheus.MustNewConstMetric(agentLastActivityDesc, prometheus.GaugeValue, secondsAgo, name)
+		ch <- prometheus.MustNewConstMetric(agentLastActivityTimestampDesc, prometheus.GaugeValue, float64(time.Now().Unix())-secondsAgo, name)
 		totalSessions += float64(sessions)
 	}
 
