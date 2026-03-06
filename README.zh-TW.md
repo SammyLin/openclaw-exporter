@@ -63,7 +63,7 @@ make build
 | `openclaw_active_sessions` | 總工作階段數 | — |
 | `openclaw_agent_sessions` | 各代理的工作階段數 | `agent_name` |
 | `openclaw_agent_state` | 狀態（0=閒置, 1=工作中, 2=思考中, 3=錯誤） | `agent_name` |
-| `openclaw_agent_last_activity_seconds` | 距上次活動的秒數 | `agent_name` |
+| `openclaw_agent_last_activity_timestamp_seconds` | 上次活動的 Unix 時間戳 | `agent_name` |
 
 ### 排程任務指標
 
@@ -72,10 +72,10 @@ make build
 | `openclaw_cron_jobs_total` | 排程任務總數 | — |
 | `openclaw_cron_jobs_enabled` | 啟用的排程任務數 | — |
 | `openclaw_cron_job_enabled` | 任務啟用狀態（1/0） | `job_name`, `job_id` |
-| `openclaw_cron_job_last_run_age_seconds` | 距上次執行的秒數 | `job_name`, `job_id` |
-| `openclaw_cron_job_next_run_in_seconds` | 距下次執行的秒數 | `job_name`, `job_id` |
+| `openclaw_cron_job_last_run_at_seconds` | 上次執行的 Unix 時間戳 | `job_name`, `job_id` |
+| `openclaw_cron_job_next_run_at_seconds` | 下次執行的 Unix 時間戳 | `job_name`, `job_id` |
 | `openclaw_cron_job_consecutive_errors` | 連續錯誤次數 | `job_name`, `job_id` |
-| `openclaw_cron_job_last_duration_ms` | 上次執行時間（毫秒） | `job_name`, `job_id` |
+| `openclaw_cron_job_last_duration_seconds` | 上次執行時間（秒） | `job_name`, `job_id` |
 
 ### Token 用量指標
 
@@ -94,8 +94,8 @@ make build
 |------|------|------|
 | `openclaw_md_file_bytes` | MD 檔案大小（位元組） | `workspace`, `filename` |
 | `openclaw_md_file_tokens_estimated` | 估計 token 數 | `workspace`, `filename` |
-| `openclaw_md_workspace_total_bytes` | 工作區 MD 總位元組 | `workspace` |
-| `openclaw_md_workspace_total_tokens_estimated` | 工作區估計總 token 數 | `workspace` |
+| `openclaw_md_workspace_bytes` | 工作區 MD 總位元組 | `workspace` |
+| `openclaw_md_workspace_tokens_estimated` | 工作區估計總 token 數 | `workspace` |
 
 ## Grafana Dashboard
 

@@ -125,7 +125,7 @@
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
       "id": 9,
       "options": {"displayMode": "gradient", "minVizHeight": 10, "minVizWidth": 0, "orientation": "horizontal", "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "showUnfilled": true, "text": {}},
-      "targets": [{"expr": "openclaw_md_workspace_total_tokens_estimated", "legendFormat": "{{workspace}}", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}, "instant": true}],
+      "targets": [{"expr": "openclaw_md_workspace_tokens_estimated", "legendFormat": "{{workspace}}", "refId": "A", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}, "instant": true}],
       "title": "Workspace Estimated Tokens",
       "type": "bargauge"
     },
