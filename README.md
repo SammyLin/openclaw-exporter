@@ -74,10 +74,10 @@ Download from [Releases](https://github.com/SammyLin/openclaw-exporter/releases)
 | `openclaw_cron_jobs_total` | Total cron jobs | — |
 | `openclaw_cron_jobs_enabled` | Enabled cron jobs | — |
 | `openclaw_cron_job_enabled` | Job enabled state (1/0) | `job_name`, `job_id` |
-| `openclaw_cron_job_last_run_age_seconds` | Seconds since last run | `job_name`, `job_id` |
-| `openclaw_cron_job_next_run_in_seconds` | Seconds until next run | `job_name`, `job_id` |
+| `openclaw_cron_job_last_run_timestamp_seconds` | Unix timestamp of last run | `job_name`, `job_id` |
+| `openclaw_cron_job_next_run_timestamp_seconds` | Unix timestamp of next run | `job_name`, `job_id` |
 | `openclaw_cron_job_consecutive_errors` | Consecutive error count | `job_name`, `job_id` |
-| `openclaw_cron_job_last_duration_ms` | Last execution duration (ms) | `job_name`, `job_id` |
+| `openclaw_cron_job_last_duration_seconds` | Last execution duration (seconds) | `job_name`, `job_id` |
 
 ### Token Usage Metrics
 
@@ -96,8 +96,8 @@ Download from [Releases](https://github.com/SammyLin/openclaw-exporter/releases)
 |--------|-------------|--------|
 | `openclaw_md_file_bytes` | MD file size in bytes | `workspace`, `filename` |
 | `openclaw_md_file_tokens_estimated` | Estimated token count | `workspace`, `filename` |
-| `openclaw_md_workspace_total_bytes` | Total MD bytes in workspace | `workspace` |
-| `openclaw_md_workspace_total_tokens_estimated` | Total estimated tokens | `workspace` |
+| `openclaw_md_workspace_bytes` | Total MD bytes in workspace | `workspace` |
+| `openclaw_md_workspace_tokens_estimated` | Total estimated tokens | `workspace` |
 
 ## Grafana Dashboard
 

@@ -21,14 +21,14 @@ var (
 		"Estimated token count.",
 		[]string{"workspace", "filename"}, nil,
 	)
-	mdWorkspaceTotalBytesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "md", "workspace_total_bytes"),
+	mdWorkspaceBytesDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "md", "workspace_bytes"),
 		"Total MD bytes in workspace.",
 		[]string{"workspace"}, nil,
 	)
-	mdWorkspaceTotalTokensEstDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "md", "workspace_total_tokens_estimated"),
-		"Total estimated tokens.",
+	mdWorkspaceTokensEstimatedDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "md", "workspace_tokens_estimated"),
+		"Total estimated tokens in workspace.",
 		[]string{"workspace"}, nil,
 	)
 )
@@ -38,8 +38,8 @@ func NewWorkspaceCollector(home string) prometheus.Collector {
 	descs := []*prometheus.Desc{
 		mdFileBytesDesc,
 		mdFileTokensEstDesc,
-		mdWorkspaceTotalBytesDesc,
-		mdWorkspaceTotalTokensEstDesc,
+		mdWorkspaceBytesDesc,
+		mdWorkspaceTokensEstimatedDesc,
 	}
 	return NewCachedCollector(60*time.Second, descs, func() []prometheus.Metric {
 		return collectWorkspaceMetrics(home)
@@ -91,8 +91,8 @@ func collectWorkspaceMetrics(home string) []prometheus.Metric {
 		}
 
 		metrics = append(metrics,
-			prometheus.MustNewConstMetric(mdWorkspaceTotalBytesDesc, prometheus.GaugeValue, float64(totalBytes), agent),
-			prometheus.MustNewConstMetric(mdWorkspaceTotalTokensEstDesc, prometheus.GaugeValue, totalTokens, agent),
+			prometheus.MustNewConstMetric(mdWorkspaceBytesDesc, prometheus.GaugeValue, float64(totalBytes), agent),
+			prometheus.MustNewConstMetric(mdWorkspaceTokensEstimatedDesc, prometheus.GaugeValue, totalTokens, agent),
 		)
 	}
 
