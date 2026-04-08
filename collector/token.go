@@ -100,7 +100,10 @@ func loadSessions(home, agentName string) []sessionEntry {
 	var asMap map[string]sessionEntry
 	if err := json.Unmarshal(data, &asMap); err == nil {
 		entries := make([]sessionEntry, 0, len(asMap))
-		for _, v := range asMap {
+		for k, v := range asMap {
+			if v.SessionID == "" {
+				v.SessionID = k
+			}
 			entries = append(entries, v)
 		}
 		return entries
