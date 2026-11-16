@@ -161,6 +161,9 @@ func getAgentState(agentPath string) (string, int64) {
 					return "thinking", timestamp
 				}
 			}
+			// Content types were checked with their specific timeouts;
+			// skip the generic role check to avoid bypassing those timeouts.
+			continue
 		}
 
 		if data.Message.Role == "assistant" && secondsAgo < 300 {
