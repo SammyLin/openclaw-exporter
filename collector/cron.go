@@ -1,12 +1,16 @@
 package collector
 
 import (
+	"cmp"
+	"database/sql"
 	"encoding/json"
 	"log/slog"
 	"os"
 	"path/filepath"
 
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/SammyLin/openclaw-exporter/internal/state"
 )
 
 var (
@@ -55,6 +59,31 @@ var (
 		"Job creation Unix timestamp.",
 		[]string{"job_name", "job_id"}, nil,
 	)
+	cronJobRunningDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "cron_job", "running"),
+		"Job is currently running (1/0).",
+		[]string{"job_name", "job_id"}, nil,
+	)
+	cronJobConsecutiveSkippedDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "cron_job", "consecutive_skipped"),
+		"Consecutive skipped runs count.",
+		[]string{"job_name", "job_id"}, nil,
+	)
+	cronJobAutoDisabledDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "cron_job", "auto_disabled"),
+		"Job was auto-disabled by the scheduler (1/0).",
+		[]string{"job_name", "job_id"}, nil,
+	)
+	cronJobLastRunStatusDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "cron_job", "last_run_status"),
+		"Last run status (ok/error/skipped); 1 for the current status.",
+		[]string{"job_name", "job_id", "status"}, nil,
+	)
+	cronJobLastDeliveryStatusDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "cron_job", "last_delivery_status"),
+		"Last delivery status (delivered/not-delivered/unknown/not-requested); 1 for the current status.",
+		[]string{"job_name", "job_id", "status"}, nil,
+	)
 )
 
 type cronJobsFile struct {
@@ -70,11 +99,17 @@ type cronJob struct {
 }
 
 type cronJobState struct {
-	LastRunAtMs       *float64 `json:"lastRunAtMs"`
-	NextRunAtMs       *float64 `json:"nextRunAtMs"`
-	ConsecutiveErrors float64  `json:"consecutiveErrors"`
-	LastDurationMs    *float64 `json:"lastDurationMs"`
-	LastDelivered     bool     `json:"lastDelivered"`
+	LastRunAtMs        *float64        `json:"lastRunAtMs"`
+	NextRunAtMs        *float64        `json:"nextRunAtMs"`
+	ConsecutiveErrors  float64         `json:"consecutiveErrors"`
+	LastDurationMs     *float64        `json:"lastDurationMs"`
+	LastDelivered      bool            `json:"lastDelivered"`
+	RunningAtMs        *float64        `json:"runningAtMs"`
+	ConsecutiveSkipped float64         `json:"consecutiveSkipped"`
+	AutoDisabled       json.RawMessage `json:"autoDisabled"` // object {reason, atMs, ...} when set
+	LastRunStatus      string          `json:"lastRunStatus"`
+	LastStatus         string          `json:"lastStatus"` // deprecated alias of lastRunStatus
+	LastDeliveryStatus string          `json:"lastDeliveryStatus"`
 }
 
 // CronCollector collects cron job metrics.
@@ -98,6 +133,11 @@ func (c *CronCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- cronJobLastDurationDesc
 	ch <- cronJobLastDeliveredDesc
 	ch <- cronJobCreatedAtDesc
+	ch <- cronJobRunningDesc
+	ch <- cronJobConsecutiveSkippedDesc
+	ch <- cronJobAutoDisabledDesc
+	ch <- cronJobLastRunStatusDesc
+	ch <- cronJobLastDeliveryStatusDesc
 }
 
 // Collect gathers cron job metrics fresh on each scrape.
@@ -114,6 +154,7 @@ func (c *CronCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	ch <- prometheus.MustNewConstMetric(cronJobsEnabledDesc, prometheus.GaugeValue, float64(enabledCount))
 
+	seen := map[[2]string]bool{}
 	for _, job := range jobs {
 		jobID := job.ID
 		if len(jobID) > 8 {
@@ -123,6 +164,12 @@ func (c *CronCollector) Collect(ch chan<- prometheus.Metric) {
 		if jobName == "" {
 			jobName = "Unknown"
 		}
+		// Duplicate label sets (truncated IDs, same job in two stores) fail the whole scrape.
+		key := [2]string{jobName, jobID}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
 
 		enabled := 0.0
 		if job.Enabled {
@@ -155,10 +202,72 @@ func (c *CronCollector) Collect(ch chan<- prometheus.Metric) {
 		if job.CreatedAt > 0 {
 			ch <- prometheus.MustNewConstMetric(cronJobCreatedAtDesc, prometheus.GaugeValue, job.CreatedAt/1000, jobName, jobID)
 		}
+
+		ch <- prometheus.MustNewConstMetric(cronJobRunningDesc, prometheus.GaugeValue, boolGauge(job.State.RunningAtMs != nil), jobName, jobID)
+		ch <- prometheus.MustNewConstMetric(cronJobConsecutiveSkippedDesc, prometheus.GaugeValue, job.State.ConsecutiveSkipped, jobName, jobID)
+		autoDisabled := len(job.State.AutoDisabled) > 0 && string(job.State.AutoDisabled) != "null"
+		ch <- prometheus.MustNewConstMetric(cronJobAutoDisabledDesc, prometheus.GaugeValue, boolGauge(autoDisabled), jobName, jobID)
+		if status := cmp.Or(job.State.LastRunStatus, job.State.LastStatus); status != "" {
+			ch <- prometheus.MustNewConstMetric(cronJobLastRunStatusDesc, prometheus.GaugeValue, 1, jobName, jobID, status)
+		}
+		if status := job.State.LastDeliveryStatus; status != "" {
+			ch <- prometheus.MustNewConstMetric(cronJobLastDeliveryStatusDesc, prometheus.GaugeValue, 1, jobName, jobID, status)
+		}
 	}
 }
 
+func boolGauge(b bool) float64 {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+// getCronJobs reads cron jobs from the SQLite state DB (OpenClaw >= 2026.6.1),
+// falling back to legacy cron/jobs.json when the DB or its cron_jobs table is missing.
 func getCronJobs(home string) []cronJob {
+	jobs, err := getCronJobsSQLite(home)
+	if err == nil {
+		return jobs
+	}
+	slog.Debug("Cron jobs not read from state DB, trying jobs.json", "err", err)
+	return getCronJobsJSON(home)
+}
+
+func getCronJobsSQLite(home string) ([]cronJob, error) {
+	db, err := state.OpenRO(state.StateDBPath(home))
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	rows, err := db.Query(`SELECT job_id, name, enabled, json_extract(job_json, '$.createdAtMs'), state_json
+		FROM cron_jobs ORDER BY store_key, sort_order, job_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	jobs := []cronJob{}
+	for rows.Next() {
+		var (
+			j         cronJob
+			createdAt sql.NullFloat64
+			stateJSON string
+		)
+		if err := rows.Scan(&j.ID, &j.Name, &j.Enabled, &createdAt, &stateJSON); err != nil {
+			return nil, err
+		}
+		j.CreatedAt = createdAt.Float64
+		if err := json.Unmarshal([]byte(stateJSON), &j.State); err != nil {
+			slog.Debug("Failed to parse cron state_json", "job_id", j.ID, "err", err)
+		}
+		jobs = append(jobs, j)
+	}
+	return jobs, rows.Err()
+}
+
+func getCronJobsJSON(home string) []cronJob {
 	cronFile := filepath.Join(home, "cron", "jobs.json")
 	data, err := os.ReadFile(cronFile)
 	if err != nil {
