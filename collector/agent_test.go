@@ -124,7 +124,9 @@ func TestCountSessions(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, name := range []string{"a.jsonl", "b.jsonl", "c.txt"} {
-		os.WriteFile(filepath.Join(sessDir, name), []byte("{}"), 0o644)
+		if err := os.WriteFile(filepath.Join(sessDir, name), []byte("{}"), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	count := countSessions(agentPath)

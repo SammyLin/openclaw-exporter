@@ -1,14 +1,11 @@
 package collector
 
 import (
-	"fmt"
 	"maps"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 func writeFile(t *testing.T, path, body string) {
@@ -84,8 +81,18 @@ func TestResolveWorkspaces(t *testing.T) {
 			},
 		},
 		{
+			name: "json5 unquoted keys, single quotes, comments",
+			config: `{
+				// as in OpenClaw docs
+				agents: { list: [ { id: 'main', default: true }, { id: 'ops' }, ], },
+			}`,
+			want: func(h string) map[string]string {
+				return map[string]string{"main": filepath.Join(h, "workspace"), "ops": filepath.Join(h, "workspace-ops")}
+			},
+		},
+		{
 			name:   "unparsable config falls back to defaults",
-			config: `{agents: {list: [{id: 'x'}]}}`,
+			config: `{agents: [`,
 			want:   func(h string) map[string]string { return map[string]string{"main": filepath.Join(h, "workspace")} },
 		},
 	}
@@ -132,23 +139,3 @@ func TestWorkspaceMetrics(t *testing.T) {
 }
 
 // gather collects c into series keys like name{k="v",...} -> value.
-func gather(t *testing.T, c prometheus.Collector) map[string]float64 {
-	t.Helper()
-	reg := prometheus.NewRegistry()
-	reg.MustRegister(c)
-	mfs, err := reg.Gather()
-	if err != nil {
-		t.Fatal(err)
-	}
-	out := map[string]float64{}
-	for _, mf := range mfs {
-		for _, m := range mf.GetMetric() {
-			var labels []string
-			for _, lp := range m.GetLabel() {
-				labels = append(labels, fmt.Sprintf("%s=%q", lp.GetName(), lp.GetValue()))
-			}
-			out[mf.GetName()+"{"+strings.Join(labels, ",")+"}"] = m.GetGauge().GetValue()
-		}
-	}
-	return out
-}

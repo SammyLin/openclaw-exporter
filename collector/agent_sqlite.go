@@ -144,6 +144,10 @@ func readSQLiteUsage(db *sql.DB, sessionID string) *usageTotals {
 			count++
 		}
 	}
+	if err := rows.Err(); err != nil {
+		slog.Debug("Failed to iterate transcript events", "session", sessionID, "err", err)
+		return nil
+	}
 	if count == 0 {
 		return nil
 	}

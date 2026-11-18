@@ -6,7 +6,6 @@ import (
 	"errors"
 	"log/slog"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/SammyLin/openclaw-exporter/internal/state"
@@ -14,21 +13,6 @@ import (
 )
 
 var (
-	agentHeartbeatLastOutcomeDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "agent", "heartbeat_last_outcome"),
-		"Latest heartbeat outcome (1 for the current outcome).",
-		[]string{"agent_name", "outcome"}, nil,
-	)
-	agentHeartbeatLastTimestampDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "agent", "heartbeat_last_timestamp_seconds"),
-		"Unix time of the latest heartbeat outcome.",
-		[]string{"agent_name"}, nil,
-	)
-	agentHeartbeatNextCheckDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "agent", "heartbeat_next_check_timestamp_seconds"),
-		"Unix time of the next heartbeat check requested by the latest outcome.",
-		[]string{"agent_name"}, nil,
-	)
 	agentAuthProfilesCoolingDownDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "agent", "auth_profiles_cooling_down"),
 		"Auth profiles currently in cooldown, blocked or disabled.",
@@ -49,9 +33,6 @@ var (
 // NewAgentHealthCollector exports health signals from each agent's SQLite DB, cached 30s.
 func NewAgentHealthCollector(home string) prometheus.Collector {
 	descs := []*prometheus.Desc{
-		agentHeartbeatLastOutcomeDesc,
-		agentHeartbeatLastTimestampDesc,
-		agentHeartbeatNextCheckDesc,
 		agentAuthProfilesCoolingDownDesc,
 		agentDBSizeDesc,
 		agentDBSchemaVersionDesc,
@@ -95,21 +76,6 @@ func collectAgentHealthMetrics(home string, now time.Time) []prometheus.Metric {
 		err = db.QueryRow(`SELECT schema_version FROM schema_meta WHERE meta_key = 'primary'`).Scan(&version)
 		if !skip("schema_meta", err) {
 			gauge(agentDBSchemaVersionDesc, float64(version), a.ID)
-		}
-
-		var (
-			outcome    string
-			occurredAt int64
-			nextCheck  sql.NullString
-		)
-		err = db.QueryRow(`SELECT outcome, occurred_at, next_check FROM heartbeat_outcomes
-			ORDER BY occurred_at DESC LIMIT 1`).Scan(&outcome, &occurredAt, &nextCheck)
-		if !skip("heartbeat_outcomes", err) {
-			gauge(agentHeartbeatLastOutcomeDesc, 1, a.ID, outcome)
-			gauge(agentHeartbeatLastTimestampDesc, float64(occurredAt)/1000, a.ID)
-			if ts, ok := parseTimestamp(nextCheck.String); ok {
-				gauge(agentHeartbeatNextCheckDesc, float64(ts.UnixMilli())/1000, a.ID)
-			}
 		}
 
 		var stateJSON string
@@ -164,16 +130,4 @@ func countCoolingDown(stateJSON string, now time.Time) (int, error) {
 		}
 	}
 	return n, nil
-}
-
-// parseTimestamp accepts RFC 3339 or epoch milliseconds. next_check is a
-// free-form TEXT column, so anything else is ignored.
-func parseTimestamp(s string) (time.Time, bool) {
-	if t, err := time.Parse(time.RFC3339, s); err == nil {
-		return t, true
-	}
-	if ms, err := strconv.ParseInt(s, 10, 64); err == nil && ms > 0 {
-		return time.UnixMilli(ms), true
-	}
-	return time.Time{}, false
 }

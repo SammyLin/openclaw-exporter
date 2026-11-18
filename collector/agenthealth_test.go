@@ -13,7 +13,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func newAgentDB(t *testing.T, home, id string, stmts ...string) string {
+func newHealthDB(t *testing.T, home, id string, stmts ...string) string {
 	t.Helper()
 	path := state.AgentDBPath(home, id)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -38,15 +38,10 @@ func TestAgentHealthMetrics(t *testing.T) {
 	future := strconv.FormatInt(now.UnixMilli()+60_000, 10)
 	past := strconv.FormatInt(now.UnixMilli()-60_000, 10)
 
-	newAgentDB(t, home, "main",
+	newHealthDB(t, home, "main",
 		`CREATE TABLE schema_meta (meta_key TEXT NOT NULL PRIMARY KEY, role TEXT NOT NULL, schema_version INTEGER NOT NULL,
 			agent_id TEXT, app_version TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)`,
 		`INSERT INTO schema_meta VALUES ('primary', 'agent', 42, 'main', NULL, 0, 0)`,
-		`CREATE TABLE heartbeat_outcomes (session_key TEXT NOT NULL PRIMARY KEY, run_session_key TEXT NOT NULL,
-			outcome TEXT NOT NULL, summary TEXT NOT NULL, next_check TEXT, wake_reason TEXT,
-			occurred_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)`,
-		`INSERT INTO heartbeat_outcomes VALUES ('a', 'a', 'done', 's', NULL, NULL, 1700000000000, 0)`,
-		`INSERT INTO heartbeat_outcomes VALUES ('b', 'b', 'blocked', 's', '2027-01-15T08:00:00Z', 'timer', 1700000500000, 0)`,
 		`CREATE TABLE auth_profile_state (state_key TEXT NOT NULL PRIMARY KEY, state_json TEXT NOT NULL, updated_at INTEGER NOT NULL)`,
 		`INSERT INTO auth_profile_state VALUES ('primary', '{"version":1,"usageStats":{
 			"anthropic:a":{"cooldownUntil":`+future+`},
@@ -55,16 +50,12 @@ func TestAgentHealthMetrics(t *testing.T) {
 			"google:d":{"lastUsed":1}}}', 0)`,
 	)
 	// Older schema: no health tables at all.
-	oldPath := newAgentDB(t, home, "old", `CREATE TABLE t (v TEXT)`)
+	oldPath := newHealthDB(t, home, "old", `CREATE TABLE t (v TEXT)`)
 
 	got := gather(t, NewAgentHealthCollector(home))
-	nextCheck, _ := time.Parse(time.RFC3339, "2027-01-15T08:00:00Z")
 	want := map[string]float64{
-		`openclaw_agent_auth_profiles_cooling_down{agent_name="main"}`:               2,
-		`openclaw_agent_db_schema_version{agent_name="main"}`:                        42,
-		`openclaw_agent_heartbeat_last_outcome{agent_name="main",outcome="blocked"}`: 1,
-		`openclaw_agent_heartbeat_last_timestamp_seconds{agent_name="main"}`:         1700000500,
-		`openclaw_agent_heartbeat_next_check_timestamp_seconds{agent_name="main"}`:   float64(nextCheck.Unix()),
+		`openclaw_agent_auth_profiles_cooling_down{agent_name="main"}`: 2,
+		`openclaw_agent_db_schema_version{agent_name="main"}`:          42,
 	}
 	// Both agents, including the old-schema one, report only a DB size beyond that.
 	for _, id := range []string{"main", "old"} {

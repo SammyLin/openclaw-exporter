@@ -1,20 +1,19 @@
 // Package config reads the parts of OpenClaw's openclaw.json the exporter needs:
 // the agent roster and per-agent workspace directories.
 //
-// OpenClaw parses the file as JSON5. Without a JSON5 dependency this does a
-// tolerant parse (comments and trailing commas stripped); anything stricter
-// JSON5 (unquoted keys, single quotes) falls back to an empty config.
+// OpenClaw parses the file as JSON5 (its docs use unquoted keys, comments and
+// trailing commas), so it is parsed with a JSON5 decoder here too.
 package config
 
 import (
-	"bytes"
-	"encoding/json"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/titanous/json5"
 )
 
 // Agent is one configured roster entry. ID is normalized.
@@ -57,7 +56,7 @@ func Load(home string) *Config {
 		slog.Debug("openclaw config not read", "path", path, "err", err)
 		return cfg
 	}
-	if err := json.Unmarshal(StripJSON5(raw), cfg); err != nil {
+	if err := json5.Unmarshal(raw, cfg); err != nil {
 		slog.Debug("openclaw config not parsed, using defaults", "path", path, "err", err)
 		return &Config{home: home}
 	}
@@ -166,50 +165,4 @@ func expandHome(p string) string {
 		}
 	}
 	return filepath.Clean(p)
-}
-
-// StripJSON5 removes // and /* */ comments and trailing commas outside of
-// strings, turning common JSON5 into JSON.
-func StripJSON5(src []byte) []byte {
-	out := make([]byte, 0, len(src))
-	for i := 0; i < len(src); i++ {
-		c := src[i]
-		switch {
-		case c == '"':
-			j := i + 1
-			for j < len(src) && src[j] != '"' {
-				if src[j] == '\\' {
-					j++
-				}
-				j++
-			}
-			j = min(j, len(src)-1)
-			out = append(out, src[i:j+1]...)
-			i = j
-		case c == '/' && i+1 < len(src) && src[i+1] == '/':
-			for i < len(src) && src[i] != '\n' {
-				i++
-			}
-			i--
-		case c == '/' && i+1 < len(src) && src[i+1] == '*':
-			end := bytes.Index(src[i+2:], []byte("*/"))
-			if end < 0 {
-				return out
-			}
-			i += end + 3
-		case c == ']' || c == '}':
-			// Drop a trailing comma before the closer.
-			k := len(out) - 1
-			for k >= 0 && (out[k] == ' ' || out[k] == '\t' || out[k] == '\n' || out[k] == '\r') {
-				k--
-			}
-			if k >= 0 && out[k] == ',' {
-				out = append(out[:k], out[k+1:]...)
-			}
-			out = append(out, c)
-		default:
-			out = append(out, c)
-		}
-	}
-	return out
 }
