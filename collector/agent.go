@@ -11,6 +11,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/SammyLin/openclaw-exporter/internal/filereader"
+	"github.com/SammyLin/openclaw-exporter/internal/state"
 )
 
 var (
@@ -23,6 +24,11 @@ var (
 		prometheus.BuildFQName(namespace, "agent", "sessions"),
 		"Sessions per agent.",
 		[]string{"agent_name"}, nil,
+	)
+	agentSessionsByStatusDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "agent", "sessions_by_status"),
+		"Non-archived sessions per agent by status (SQLite state only).",
+		[]string{"agent_name", "status"}, nil,
 	)
 	agentStateDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "agent", "state"),
@@ -50,32 +56,35 @@ func NewAgentCollector(home string) *AgentCollector {
 func (c *AgentCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- activeSessionsDesc
 	ch <- agentSessionsDesc
+	ch <- agentSessionsByStatusDesc
 	ch <- agentStateDesc
 	ch <- agentLastActivityTimestampDesc
 }
 
 // Collect gathers agent metrics fresh on each scrape.
 func (c *AgentCollector) Collect(ch chan<- prometheus.Metric) {
-	agentsDir := filepath.Join(c.home, "agents")
-	entries, err := os.ReadDir(agentsDir)
-	if err != nil {
-		ch <- prometheus.MustNewConstMetric(activeSessionsDesc, prometheus.GaugeValue, 0)
-		return
-	}
-
 	var totalSessions float64
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
+	for _, a := range state.ListAgents(c.home) {
+		name := a.ID
+		var sessions int
+		var st string
+		var timestamp int64
+		snap, err := readAgentSQLite(a.DBPath)
+		if err == nil {
+			sessions, st, timestamp = snap.sessions, snap.state, snap.timestamp
+			for status, n := range snap.byStatus {
+				ch <- prometheus.MustNewConstMetric(agentSessionsByStatusDesc, prometheus.GaugeValue, float64(n), name, status)
+			}
+		} else {
+			if a.DBPath != "" {
+				slog.Debug("Failed to read agent DB", "agent", name, "err", err)
+			}
+			sessions = countSessions(a.Dir)
+			st, timestamp = getAgentState(a.Dir)
 		}
-		name := entry.Name()
-		agentPath := filepath.Join(agentsDir, name)
-
-		sessions := countSessions(agentPath)
-		state, timestamp := getAgentState(agentPath)
 
 		ch <- prometheus.MustNewConstMetric(agentSessionsDesc, prometheus.GaugeValue, float64(sessions), name)
-		ch <- prometheus.MustNewConstMetric(agentStateDesc, prometheus.GaugeValue, StateMap[state], name)
+		ch <- prometheus.MustNewConstMetric(agentStateDesc, prometheus.GaugeValue, StateMap[st], name)
 		ch <- prometheus.MustNewConstMetric(agentLastActivityTimestampDesc, prometheus.GaugeValue, float64(timestamp), name)
 		totalSessions += float64(sessions)
 	}
@@ -128,15 +137,14 @@ func getAgentState(agentPath string) (string, int64) {
 		return "idle", timestamp
 	}
 
-	// Check last 10 lines in reverse
-	start := len(lines) - 10
-	if start < 0 {
-		start = 0
-	}
-	tail := lines[start:]
+	// Check last 10 lines
+	start := max(len(lines)-10, 0)
+	return stateFromEvents(lines[start:], time.Now().Unix()-timestamp), timestamp
+}
 
-	secondsAgo := time.Now().Unix() - timestamp
-
+// stateFromEvents classifies transcript events (oldest first, newest last)
+// whose latest write was secondsAgo seconds ago.
+func stateFromEvents(tail []string, secondsAgo int64) string {
 	for i := len(tail) - 1; i >= 0; i-- {
 		var data struct {
 			Message struct {
@@ -155,10 +163,10 @@ func getAgentState(agentPath string) (string, int64) {
 		if err := json.Unmarshal(data.Message.Content, &contents); err == nil {
 			for _, ct := range contents {
 				if ct.Type == "toolCall" && secondsAgo < 60 {
-					return "working", timestamp
+					return "working"
 				}
 				if ct.Type == "thinking" && secondsAgo < 120 {
-					return "thinking", timestamp
+					return "thinking"
 				}
 			}
 			// Content types were checked with their specific timeouts;
@@ -167,9 +175,9 @@ func getAgentState(agentPath string) (string, int64) {
 		}
 
 		if data.Message.Role == "assistant" && secondsAgo < 300 {
-			return "working", timestamp
+			return "working"
 		}
 	}
 
-	return "idle", timestamp
+	return "idle"
 }

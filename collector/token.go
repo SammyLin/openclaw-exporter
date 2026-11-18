@@ -2,17 +2,20 @@ package collector
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"io"
 	"log/slog"
 	"math"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/SammyLin/openclaw-exporter/internal/state"
 )
 
 var (
@@ -53,11 +56,43 @@ var (
 	)
 )
 
-// sessionEntry represents a session from sessions.json.
+// sessionEntry represents a session from sessions.json or session_nodes.
 type sessionEntry struct {
 	SessionID string  `json:"sessionId"`
 	Label     string  `json:"label"`
 	UpdatedAt float64 `json:"updatedAt"`
+	// SQLite-only fields.
+	SessionKey  string `json:"-"`
+	DisplayName string `json:"-"`
+	CreatedVia  string `json:"-"`
+}
+
+func (s sessionEntry) isCron() bool {
+	return s.CreatedVia == "cron" || strings.Contains(s.Label, "Cron:")
+}
+
+func (s sessionEntry) cronName() string {
+	if strings.Contains(s.Label, "Cron:") {
+		return strings.TrimSpace(strings.Replace(strings.Replace(s.Label, "Cron: ", "", 1), "Cron:", "", 1))
+	}
+	return cmp.Or(s.DisplayName, s.Label, s.SessionKey)
+}
+
+// agentSessions returns an agent's sessions and a usage reader for them,
+// from the agent SQLite DB when present, else from legacy JSON files.
+// The caller must call closeFn when done.
+func agentSessions(home string, a state.Agent) (sessions []sessionEntry, usage func(sessionID string) *usageTotals, closeFn func()) {
+	if a.DBPath != "" {
+		db, err := state.OpenRO(a.DBPath)
+		if err == nil {
+			if sessions, err = loadSQLiteSessions(db); err == nil {
+				return sessions, func(id string) *usageTotals { return readSQLiteUsage(db, id) }, func() { db.Close() }
+			}
+			db.Close()
+		}
+		slog.Debug("Failed to read agent DB, falling back to JSON", "agent", a.ID, "err", err)
+	}
+	return loadSessions(home, a.ID), func(id string) *usageTotals { return readSessionUsage(home, a.ID, id) }, func() {}
 }
 
 // usageTotals holds aggregated token usage.
@@ -158,64 +193,10 @@ func readSessionUsage(home, agentName, sessionID string) *usageTotals {
 
 	totals := &usageTotals{}
 	count := 0
-
 	for _, line := range bytes.Split(bytes.TrimSpace(rawData), []byte("\n")) {
-		if len(line) == 0 {
-			continue
+		if totals.add(line) {
+			count++
 		}
-
-		var rec map[string]json.RawMessage
-		if err := json.Unmarshal(line, &rec); err != nil {
-			continue
-		}
-
-		// Find usage: either top-level or inside message
-		usageRaw, ok := rec["usage"]
-		if !ok {
-			var msg map[string]json.RawMessage
-			if msgRaw, exists := rec["message"]; exists {
-				if err := json.Unmarshal(msgRaw, &msg); err == nil {
-					usageRaw, ok = msg["usage"]
-				}
-			}
-		}
-		if !ok || usageRaw == nil {
-			continue
-		}
-
-		var usage struct {
-			Input       float64         `json:"input"`
-			Output      float64         `json:"output"`
-			CacheRead   float64         `json:"cacheRead"`
-			CacheWrite  float64         `json:"cacheWrite"`
-			TotalTokens float64         `json:"totalTokens"`
-			Cost        json.RawMessage `json:"cost"`
-		}
-		if err := json.Unmarshal(usageRaw, &usage); err != nil {
-			continue
-		}
-
-		totals.Input += usage.Input
-		totals.Output += usage.Output
-		totals.CacheRead += usage.CacheRead
-		totals.CacheWrite += usage.CacheWrite
-		totals.TotalTokens += usage.TotalTokens
-
-		// Handle cost polymorphism: can be {"total": 0.5} or 0.5
-		if len(usage.Cost) > 0 {
-			var costObj struct {
-				Total float64 `json:"total"`
-			}
-			if err := json.Unmarshal(usage.Cost, &costObj); err == nil {
-				totals.Cost += costObj.Total
-			} else {
-				var costNum float64
-				if err := json.Unmarshal(usage.Cost, &costNum); err == nil {
-					totals.Cost += costNum
-				}
-			}
-		}
-		count++
 	}
 
 	if count == 0 {
@@ -224,30 +205,94 @@ func readSessionUsage(home, agentName, sessionID string) *usageTotals {
 	return totals
 }
 
+// add parses one transcript event and adds its usage. Reports whether it had usage.
+func (totals *usageTotals) add(line []byte) bool {
+	if len(line) == 0 {
+		return false
+	}
+	var rec map[string]json.RawMessage
+	if err := json.Unmarshal(line, &rec); err != nil {
+		return false
+	}
+
+	// Find usage: either top-level or inside message
+	usageRaw, ok := rec["usage"]
+	if !ok {
+		var msg map[string]json.RawMessage
+		if msgRaw, exists := rec["message"]; exists {
+			if err := json.Unmarshal(msgRaw, &msg); err == nil {
+				usageRaw, ok = msg["usage"]
+			}
+		}
+	}
+	if !ok || usageRaw == nil {
+		return false
+	}
+
+	var usage struct {
+		Input       float64         `json:"input"`
+		Output      float64         `json:"output"`
+		CacheRead   float64         `json:"cacheRead"`
+		CacheWrite  float64         `json:"cacheWrite"`
+		TotalTokens float64         `json:"totalTokens"`
+		Cost        json.RawMessage `json:"cost"`
+		UsageReport struct {
+			State string `json:"state"`
+		} `json:"usageReport"`
+	}
+	if err := json.Unmarshal(usageRaw, &usage); err != nil {
+		return false
+	}
+	// Failed/interrupted turns carry no measured usage.
+	if usage.UsageReport.State == "unavailable" {
+		return false
+	}
+
+	totals.Input += usage.Input
+	totals.Output += usage.Output
+	totals.CacheRead += usage.CacheRead
+	totals.CacheWrite += usage.CacheWrite
+	totals.TotalTokens += usage.TotalTokens
+
+	// Handle cost polymorphism: can be {"total": 0.5} or 0.5
+	if len(usage.Cost) > 0 {
+		var costObj struct {
+			Total float64 `json:"total"`
+		}
+		if err := json.Unmarshal(usage.Cost, &costObj); err == nil {
+			totals.Cost += costObj.Total
+		} else {
+			var costNum float64
+			if err := json.Unmarshal(usage.Cost, &costNum); err == nil {
+				totals.Cost += costNum
+			}
+		}
+	}
+	return true
+}
+
 func collectCronSessionTokens(home string) []prometheus.Metric {
 	var metrics []prometheus.Metric
 	nowMs := float64(time.Now().UnixMilli())
 	cutoffMs := nowMs - sevenDaysMs
 
-	for _, agent := range AgentNames {
-		sessions := loadSessions(home, agent)
+	for _, a := range state.ListAgents(home) {
+		agent := a.ID
+		sessions, readUsage, closeFn := agentSessions(home, a)
 		// Find latest cron session per cron_name
 		cronSessions := make(map[string]sessionEntry)
 		for _, s := range sessions {
-			if !strings.Contains(s.Label, "Cron:") {
+			if !s.isCron() || s.UpdatedAt < cutoffMs {
 				continue
 			}
-			if s.UpdatedAt < cutoffMs {
-				continue
-			}
-			cronName := strings.TrimSpace(strings.Replace(strings.Replace(s.Label, "Cron: ", "", 1), "Cron:", "", 1))
+			cronName := s.cronName()
 			if existing, ok := cronSessions[cronName]; !ok || s.UpdatedAt > existing.UpdatedAt {
 				cronSessions[cronName] = s
 			}
 		}
 
 		for cronName, s := range cronSessions {
-			usage := readSessionUsage(home, agent, s.SessionID)
+			usage := readUsage(s.SessionID)
 			if usage == nil {
 				continue
 			}
@@ -271,6 +316,7 @@ func collectCronSessionTokens(home string) []prometheus.Metric {
 				cronSessionTotalTokensDesc, prometheus.GaugeValue, usage.TotalTokens, agent, cronName,
 			))
 		}
+		closeFn()
 	}
 	return metrics
 }
@@ -278,35 +324,27 @@ func collectCronSessionTokens(home string) []prometheus.Metric {
 func collectAgentSessionTokens(home string) []prometheus.Metric {
 	var metrics []prometheus.Metric
 
-	for _, agent := range AgentNames {
-		sessions := loadSessions(home, agent)
+	for _, a := range state.ListAgents(home) {
+		agent := a.ID
+		sessions, readUsage, closeFn := agentSessions(home, a)
 		// Filter non-cron sessions
 		var regular []sessionEntry
 		for _, s := range sessions {
-			if !strings.HasPrefix(s.Label, "Cron") {
+			if !s.isCron() && !strings.HasPrefix(s.Label, "Cron") {
 				regular = append(regular, s)
 			}
 		}
-		// Sort by updatedAt descending
-		sort.Slice(regular, func(i, j int) bool {
-			return regular[i].UpdatedAt > regular[j].UpdatedAt
-		})
-
-		// Take last 5
-		if len(regular) > 5 {
-			regular = regular[:5]
-		}
-		if len(regular) == 0 {
-			continue
-		}
+		// Sort by updatedAt descending, take last 5
+		slices.SortFunc(regular, func(x, y sessionEntry) int { return cmp.Compare(y.UpdatedAt, x.UpdatedAt) })
+		regular = regular[:min(len(regular), 5)]
 
 		var allUsage []*usageTotals
 		for _, s := range regular {
-			usage := readSessionUsage(home, agent, s.SessionID)
-			if usage != nil {
+			if usage := readUsage(s.SessionID); usage != nil {
 				allUsage = append(allUsage, usage)
 			}
 		}
+		closeFn()
 		if len(allUsage) == 0 {
 			continue
 		}
