@@ -17,17 +17,6 @@ var StateMap = map[string]float64{
 	"error":    3,
 }
 
-// WorkspaceMap maps directory names to agent names.
-var WorkspaceMap = map[string]string{
-	"workspace":           "main",
-	"workspace-kanbei":    "kanbei",
-	"workspace-mitsunari": "mitsunari",
-	"workspace-leyoyo":    "leyoyo",
-}
-
-// AgentNames is the list of known agent names.
-var AgentNames = []string{"main", "kanbei", "mitsunari", "leyoyo"}
-
 const sevenDaysMs = 7 * 24 * 3600 * 1000
 
 // CachedCollector wraps a collect function with a TTL cache.

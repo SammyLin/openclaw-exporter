@@ -5,8 +5,11 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
+	"github.com/SammyLin/openclaw-exporter/internal/config"
+	"github.com/SammyLin/openclaw-exporter/internal/state"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -49,8 +52,7 @@ func NewWorkspaceCollector(home string) prometheus.Collector {
 func collectWorkspaceMetrics(home string) []prometheus.Metric {
 	var metrics []prometheus.Metric
 
-	for wsDir, agent := range WorkspaceMap {
-		wsPath := filepath.Join(home, wsDir)
+	for agent, wsPath := range resolveWorkspaces(home) {
 		if _, err := os.Stat(wsPath); err != nil {
 			continue
 		}
@@ -97,4 +99,33 @@ func collectWorkspaceMetrics(home string) []prometheus.Metric {
 	}
 
 	return metrics
+}
+
+// resolveWorkspaces maps agent id to workspace dir for the union of the config
+// roster and agents found on disk. When two agents share a dir, the first id
+// in sorted order keeps it.
+func resolveWorkspaces(home string) map[string]string {
+	cfg := config.Load(home)
+	var ids []string
+	for _, a := range cfg.Roster() {
+		ids = append(ids, a.ID)
+	}
+	for _, a := range state.ListAgents(home) {
+		ids = append(ids, config.NormalizeAgentID(a.ID))
+	}
+	slices.Sort(ids)
+	ids = slices.Compact(ids)
+
+	out := make(map[string]string, len(ids))
+	seen := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		dir := cfg.WorkspaceDir(id)
+		if seen[dir] {
+			slog.Debug("Workspace shared with another agent, skipping", "agent", id, "path", dir)
+			continue
+		}
+		seen[dir] = true
+		out[id] = dir
+	}
+	return out
 }

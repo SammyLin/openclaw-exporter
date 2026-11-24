@@ -16,7 +16,7 @@ import (
 	"github.com/SammyLin/openclaw-exporter/collector"
 )
 
-const version = "0.3.0"
+const version = "0.4.0"
 
 func main() {
 	var (
@@ -70,6 +70,8 @@ func main() {
 		collector.NewCronCollector(home),
 		collector.NewWorkspaceCollector(home),
 		collector.NewTokenCollector(home),
+		collector.NewOpsCollector(home),
+		collector.NewAgentHealthCollector(home),
 	)
 
 	// Set up HTTP

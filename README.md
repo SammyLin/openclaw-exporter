@@ -10,11 +10,19 @@ Prometheus exporter for [OpenClaw](https://github.com/nicholasgriffintn/openclaw
 
 ## Overview
 
-`openclaw-exporter` reads OpenClaw's local data files (`~/.openclaw/`) and exposes them as Prometheus metrics on `:9101/metrics`.
+`openclaw-exporter` reads OpenClaw's local state (`~/.openclaw/`) read-only and exposes it as Prometheus metrics on `:9101/metrics`.
+
+- **OpenClaw 2026.8.1+**: reads the SQLite state databases (`state/openclaw.sqlite`, `agents/<id>/agent/openclaw-agent.sqlite`).
+- **Older OpenClaw**: falls back to the legacy `sessions.json` / `*.jsonl` / `cron/jobs.json` files.
+- Agents are discovered from `openclaw.json` (JSON5) and `agents/*`; workspaces follow OpenClaw's resolution rules (per-agent `workspace`, `agents.defaults.workspace`, `workspace-<id>`).
+
+### Relation to OpenClaw's built-in Prometheus endpoint
+
+OpenClaw ships a `diagnostics-prometheus` plugin at `GET /api/diagnostics/prometheus` on the gateway (needs gateway auth with `operator.read`). It covers runtime events: model calls, failovers, token/cost totals, tool executions, queue lanes, stuck sessions, gateway health. Scrape it alongside this exporter. This exporter covers what it intentionally leaves out: per-agent state, per-session token/cost, cron job state, approvals, delivery queue, auth cooldowns and workspace sizes.
 
 ## Prerequisites
 
-- **Go 1.22+** (for building from source)
+- **Go 1.26+** (for building from source)
 - A running **OpenClaw** instance with data in `~/.openclaw/`
 
 ## Getting Started
@@ -66,6 +74,10 @@ Download from [Releases](https://github.com/SammyLin/openclaw-exporter/releases)
 | `openclaw_agent_sessions` | Sessions per agent | `agent_name` |
 | `openclaw_agent_state` | State (0=idle, 1=working, 2=thinking, 3=error) | `agent_name` |
 | `openclaw_agent_last_activity_timestamp_seconds` | Unix timestamp of last activity | `agent_name` |
+| `openclaw_agent_sessions_by_status` | Non-archived sessions by status (SQLite only) | `agent_name`, `status` |
+| `openclaw_agent_auth_profiles_cooling_down` | Auth profiles in cooldown / blocked / disabled | `agent_name` |
+| `openclaw_agent_db_size_bytes` | Agent SQLite DB size incl. WAL | `agent_name` |
+| `openclaw_agent_db_schema_version` | Agent SQLite schema version | `agent_name` |
 
 ### Cron Job Metrics
 
@@ -78,6 +90,21 @@ Download from [Releases](https://github.com/SammyLin/openclaw-exporter/releases)
 | `openclaw_cron_job_next_run_at_seconds` | Unix timestamp of next run | `job_name`, `job_id` |
 | `openclaw_cron_job_consecutive_errors` | Consecutive error count | `job_name`, `job_id` |
 | `openclaw_cron_job_last_duration_seconds` | Last execution duration (seconds) | `job_name`, `job_id` |
+| `openclaw_cron_job_last_delivered` | Last result delivered (1/0) | `job_name`, `job_id` |
+| `openclaw_cron_job_created_at_seconds` | Job creation Unix timestamp | `job_name`, `job_id` |
+| `openclaw_cron_job_running` | Job currently running (1/0) | `job_name`, `job_id` |
+| `openclaw_cron_job_consecutive_skipped` | Consecutive skipped runs | `job_name`, `job_id` |
+| `openclaw_cron_job_auto_disabled` | Job auto-disabled after errors (1/0) | `job_name`, `job_id` |
+| `openclaw_cron_job_last_run_status` | 1 for the last run status (`ok`/`error`/`skipped`) | `job_name`, `job_id`, `status` |
+| `openclaw_cron_job_last_delivery_status` | 1 for the last delivery status | `job_name`, `job_id`, `status` |
+| `openclaw_cron_runs_recent` | Cron runs in the last 24h by status | `status` |
+
+### Operations Metrics (SQLite only)
+
+| Metric | Description | Labels |
+|--------|-------------|--------|
+| `openclaw_approvals_pending` | Pending operator approvals | `kind` |
+| `openclaw_delivery_queue_entries` | Outbound delivery queue entries | `status` |
 
 ### Token Usage Metrics
 
@@ -85,6 +112,7 @@ Download from [Releases](https://github.com/SammyLin/openclaw-exporter/releases)
 |--------|-------------|--------|
 | `openclaw_cron_session_tokens_last` | Token usage in last cron session | `agent`, `cron_name`, `token_type` |
 | `openclaw_cron_session_cost_last_usd` | Cost of last cron session | `agent`, `cron_name` |
+| `openclaw_cron_session_total_tokens_last` | Total tokens in last cron session | `agent`, `cron_name` |
 | `openclaw_agent_session_avg_tokens` | Avg tokens per session (last 5) | `agent`, `token_type` |
 | `openclaw_agent_session_avg_cost_usd` | Avg cost per session (last 5) | `agent` |
 | `openclaw_agent_session_last_tokens` | Tokens in latest session | `agent`, `token_type` |
