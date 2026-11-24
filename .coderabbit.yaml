@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+
+reviews:
+  profile: chill
+  auto_review:
+    enabled: true
+    drafts: false
+
+  # Skip generated / vendored files that add noise to reviews.
+  path_filters:
+    - "!deploy/grafana/dashboards/**/*.json"
+    - "!go.sum"
+
+  path_instructions:
+    - path: "collector/**/*.go"
+      instructions: |
+        These files define Prometheus collectors. Check that:
+        - Metric names use the `openclaw_` prefix, snake_case, and Prometheus
+          base units with the unit suffix (`_seconds`, `_bytes`, `_usd`).
+        - Label sets stay low-cardinality. Flag any label built from
+          unbounded values (session IDs, file paths, timestamps, free text).
+        - A metric's label set is the same in every code path, and Describe
+          matches what Collect emits.
+        - Reading OpenClaw state never writes to ~/.openclaw and never panics
+          on missing or malformed files; errors are logged and the scrape
+          continues.
+        - README.md and README.zh-TW.md metric tables are updated when a
+          metric is added, renamed or removed.
+    - path: "internal/state/**/*.go"
+      instructions: |
+        SQLite access must go through OpenRO and stay read-only (mode=ro +
+        query_only; immutable only when no -wal/-shm sidecars exist, never
+        on a database the gateway is still writing). It must keep working
+        with the legacy JSON/JSONL fallback for older OpenClaw versions.
+    - path: "**/*_test.go"
+      instructions: |
+        Prefer table-driven tests and testdata fixtures. Flag tests that read
+        the real ~/.openclaw directory or depend on wall-clock time.
+
+  tools:
+    golangci-lint:
+      enabled: true
+    hadolint:
+      enabled: true
+    actionlint:
+      enabled: true
+    gitleaks:
+      enabled: true
