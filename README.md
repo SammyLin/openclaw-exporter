@@ -3,6 +3,8 @@
 [![Tests](https://github.com/SammyLin/openclaw-exporter/actions/workflows/tests.yml/badge.svg)](https://github.com/SammyLin/openclaw-exporter/actions/workflows/tests.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/SammyLin/openclaw-exporter)](https://goreportcard.com/report/github.com/SammyLin/openclaw-exporter)
 [![Docker Pulls](https://img.shields.io/docker/pulls/sammylin/openclaw-exporter)](https://hub.docker.com/r/sammylin/openclaw-exporter)
+[![Release](https://img.shields.io/github/v/release/SammyLin/openclaw-exporter)](https://github.com/SammyLin/openclaw-exporter/releases)
+[![License](https://img.shields.io/github/license/SammyLin/openclaw-exporter)](LICENSE)
 
 Languages: English | [繁體中文](README.zh-TW.md)
 
