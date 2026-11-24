@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -68,14 +69,34 @@ type sessionEntry struct {
 }
 
 func (s sessionEntry) isCron() bool {
-	return s.CreatedVia == "cron" || strings.Contains(s.Label, "Cron:")
+	return s.CreatedVia == "cron" || strings.Contains(s.Label, "Cron:") || cronJobKeyRe.MatchString(s.SessionKey)
 }
 
+// cronLabelPrefixes are the label prefixes OpenClaw gives cron run sessions:
+// "Automation: <job>" on current releases, "Cron: <job>" on older ones.
+var cronLabelPrefixes = []string{"Automation:", "Cron:"}
+
+// cronJobKeyRe extracts the job id from cron session keys such as
+// "cron:<jobId>" or "agent:<id>:cron:<jobId>[:...]".
+var cronJobKeyRe = regexp.MustCompile(`(?:^|:)cron:([^:]+)`)
+
+// cronName returns a stable per-job name. It never falls back to the
+// per-run session key, which would create one series per run.
 func (s sessionEntry) cronName() string {
-	if strings.Contains(s.Label, "Cron:") {
-		return strings.TrimSpace(strings.Replace(strings.Replace(s.Label, "Cron: ", "", 1), "Cron:", "", 1))
+	for _, p := range cronLabelPrefixes {
+		if _, after, ok := strings.Cut(s.Label, p); ok {
+			if name := strings.TrimSpace(after); name != "" {
+				return name
+			}
+		}
 	}
-	return cmp.Or(s.DisplayName, s.Label, s.SessionKey)
+	if s.DisplayName != "" {
+		return s.DisplayName
+	}
+	if m := cronJobKeyRe.FindStringSubmatch(s.SessionKey); m != nil {
+		return m[1]
+	}
+	return strings.TrimSpace(s.Label)
 }
 
 // agentSessions returns an agent's sessions and a usage reader for them,
@@ -90,7 +111,9 @@ func agentSessions(home string, a state.Agent) (sessions []sessionEntry, usage f
 			}
 			db.Close()
 		}
-		slog.Debug("Failed to read agent DB, falling back to JSON", "agent", a.ID, "err", err)
+		// No legacy fallback: on SQLite installs those files are stale or absent.
+		slog.Warn("Failed to read agent DB", "agent", a.ID, "err", err)
+		return nil, func(string) *usageTotals { return nil }, func() {}
 	}
 	return loadSessions(home, a.ID), func(id string) *usageTotals { return readSessionUsage(home, a.ID, id) }, func() {}
 }

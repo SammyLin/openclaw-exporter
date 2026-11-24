@@ -4,9 +4,11 @@ import (
 	"cmp"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -205,8 +207,7 @@ func (c *CronCollector) Collect(ch chan<- prometheus.Metric) {
 
 		ch <- prometheus.MustNewConstMetric(cronJobRunningDesc, prometheus.GaugeValue, boolGauge(job.State.RunningAtMs != nil), jobName, jobID)
 		ch <- prometheus.MustNewConstMetric(cronJobConsecutiveSkippedDesc, prometheus.GaugeValue, job.State.ConsecutiveSkipped, jobName, jobID)
-		autoDisabled := len(job.State.AutoDisabled) > 0 && string(job.State.AutoDisabled) != "null"
-		ch <- prometheus.MustNewConstMetric(cronJobAutoDisabledDesc, prometheus.GaugeValue, boolGauge(autoDisabled), jobName, jobID)
+		ch <- prometheus.MustNewConstMetric(cronJobAutoDisabledDesc, prometheus.GaugeValue, boolGauge(isAutoDisabled(job.State.AutoDisabled)), jobName, jobID)
 		if status := cmp.Or(job.State.LastRunStatus, job.State.LastStatus); status != "" {
 			ch <- prometheus.MustNewConstMetric(cronJobLastRunStatusDesc, prometheus.GaugeValue, 1, jobName, jobID, status)
 		}
@@ -214,6 +215,23 @@ func (c *CronCollector) Collect(ch chan<- prometheus.Metric) {
 			ch <- prometheus.MustNewConstMetric(cronJobLastDeliveryStatusDesc, prometheus.GaugeValue, 1, jobName, jobID, status)
 		}
 	}
+}
+
+// isAutoDisabled reports whether state.autoDisabled is set. OpenClaw writes an
+// object ({reason, atMs, ...}); treat true or a non-empty object as set and
+// null, false, 0 or {} as not set.
+func isAutoDisabled(raw json.RawMessage) bool {
+	var v any
+	if json.Unmarshal(raw, &v) != nil {
+		return false
+	}
+	switch v := v.(type) {
+	case bool:
+		return v
+	case map[string]any:
+		return len(v) > 0
+	}
+	return false
 }
 
 func boolGauge(b bool) float64 {
@@ -227,11 +245,18 @@ func boolGauge(b bool) float64 {
 // falling back to legacy cron/jobs.json when the DB or its cron_jobs table is missing.
 func getCronJobs(home string) []cronJob {
 	jobs, err := getCronJobsSQLite(home)
-	if err == nil {
+	switch {
+	case err == nil:
 		return jobs
+	case errors.Is(err, os.ErrNotExist) || strings.Contains(err.Error(), "no such table"):
+		slog.Debug("Cron jobs not in state DB, trying jobs.json", "err", err)
+		return getCronJobsJSON(home)
+	default:
+		// The DB exists but is unreadable right now (e.g. locked); a stale
+		// jobs.json would report wrong state, so skip this scrape.
+		slog.Warn("Failed to read cron jobs from state DB", "err", err)
+		return nil
 	}
-	slog.Debug("Cron jobs not read from state DB, trying jobs.json", "err", err)
-	return getCronJobsJSON(home)
 }
 
 func getCronJobsSQLite(home string) ([]cronJob, error) {

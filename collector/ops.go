@@ -35,13 +35,19 @@ type opsQuery struct {
 	desc  *prometheus.Desc
 	query string
 	args  func() []any
+	// zero lists label values always emitted (as 0 when absent) so alerts
+	// like `openclaw_approvals_pending > 0` have a series to evaluate.
+	zero []string
 }
 
 var opsQueries = []opsQuery{
-	{approvalsPendingDesc, `SELECT kind, COUNT(*) FROM operator_approvals WHERE status = 'pending' GROUP BY kind`, nil},
-	{deliveryQueueEntriesDesc, `SELECT status, COUNT(*) FROM delivery_queue_entries GROUP BY status`, nil},
+	{approvalsPendingDesc, `SELECT kind, COUNT(*) FROM operator_approvals WHERE status = 'pending' GROUP BY kind`, nil,
+		[]string{"exec", "plugin", "system-agent"}}, // schema CHECK on kind
+	{deliveryQueueEntriesDesc, `SELECT status, COUNT(*) FROM delivery_queue_entries GROUP BY status`, nil,
+		[]string{"pending", "failed"}},
 	{cronRunsRecentDesc, `SELECT status, COUNT(*) FROM task_runs WHERE runtime = 'cron' AND created_at >= ? GROUP BY status`,
-		func() []any { return []any{time.Now().Add(-cronRunsRecentWindow).UnixMilli()} }},
+		func() []any { return []any{time.Now().Add(-cronRunsRecentWindow).UnixMilli()} },
+		[]string{"failed"}},
 }
 
 // NewOpsCollector exports operational counts from the shared state DB
@@ -75,6 +81,11 @@ func collectOps(home string) []prometheus.Metric {
 		if err != nil {
 			slog.Debug("Ops query failed", "query", q.query, "err", err)
 			continue
+		}
+		for _, label := range q.zero {
+			if _, ok := counts[label]; !ok {
+				counts[label] = 0
+			}
 		}
 		for label, n := range counts {
 			metrics = append(metrics, prometheus.MustNewConstMetric(q.desc, prometheus.GaugeValue, n, label))

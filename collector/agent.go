@@ -69,16 +69,19 @@ func (c *AgentCollector) Collect(ch chan<- prometheus.Metric) {
 		var sessions int
 		var st string
 		var timestamp int64
-		snap, err := readAgentSQLite(a.DBPath)
-		if err == nil {
+		if a.DBPath != "" {
+			snap, err := readAgentSQLite(a.DBPath)
+			if err != nil {
+				// Legacy files are gone on SQLite installs; emitting them would
+				// report a false 0/idle. Skip this agent for this scrape instead.
+				slog.Warn("Failed to read agent DB", "agent", name, "err", err)
+				continue
+			}
 			sessions, st, timestamp = snap.sessions, snap.state, snap.timestamp
 			for status, n := range snap.byStatus {
 				ch <- prometheus.MustNewConstMetric(agentSessionsByStatusDesc, prometheus.GaugeValue, float64(n), name, status)
 			}
 		} else {
-			if a.DBPath != "" {
-				slog.Debug("Failed to read agent DB", "agent", name, "err", err)
-			}
 			sessions = countSessions(a.Dir)
 			st, timestamp = getAgentState(a.Dir)
 		}

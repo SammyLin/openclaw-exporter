@@ -58,9 +58,14 @@ func readAgentSQLite(dbPath string) (agentSnapshot, error) {
 		return snap, err
 	}
 
-	// Last 10 events of the most recently updated session window.
+	// Last 10 events of the most recently updated window of a non-archived
+	// session, matching the session count above.
 	rows, err = db.Query(`SELECT event_json, event_zstd, created_at FROM transcript_events
-		WHERE session_id = (SELECT session_id FROM session_windows ORDER BY updated_at DESC LIMIT 1)
+		WHERE session_id = (
+			SELECT w.session_id FROM session_windows w
+			JOIN session_nodes n ON n.session_key = w.session_key
+			WHERE n.archived_at IS NULL
+			ORDER BY w.updated_at DESC LIMIT 1)
 		ORDER BY seq DESC LIMIT 10`)
 	if err != nil {
 		return snap, err

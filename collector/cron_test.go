@@ -2,6 +2,7 @@ package collector
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -149,4 +150,20 @@ func TestCronCollector_NothingOnDisk(t *testing.T) {
 	expectMetrics(t, gather(t, NewCronCollector(t.TempDir())), map[string]float64{
 		"openclaw_cron_jobs_total{}": 0,
 	})
+}
+
+func TestIsAutoDisabled(t *testing.T) {
+	for raw, want := range map[string]bool{
+		`{"reason":"errors","atMs":1}`: true,
+		`true`:                         true,
+		`{}`:                           false,
+		`false`:                        false,
+		`0`:                            false,
+		`null`:                         false,
+		``:                             false,
+	} {
+		if got := isAutoDisabled(json.RawMessage(raw)); got != want {
+			t.Errorf("isAutoDisabled(%q) = %v, want %v", raw, got, want)
+		}
+	}
 }

@@ -25,9 +25,11 @@ func TestOpsCollector(t *testing.T) {
 		`openclaw_approvals_pending{kind="plugin"}`:     1,
 		`openclaw_cron_runs_recent{status="succeeded"}`: 1,
 		`openclaw_cron_runs_recent{status="failed"}`:    1,
+		// zero-filled so alerts on "> 0" have a series
+		`openclaw_approvals_pending{kind="system-agent"}`: 0,
 	})
-	if len(got) != 4 {
-		t.Errorf("got %d series, want 4: %v", len(got), got)
+	if len(got) != 5 {
+		t.Errorf("got %d series, want 5: %v", len(got), got)
 	}
 }
 

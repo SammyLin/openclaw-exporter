@@ -134,6 +134,38 @@ func TestReadAgentSQLite_State(t *testing.T) {
 	}
 }
 
+func TestReadAgentSQLite_IgnoresArchivedSessions(t *testing.T) {
+	toolCall := `{"type":"message","message":{"role":"assistant","content":[{"type":"toolCall"}]}}`
+	home := t.TempDir()
+	db := newAgentDB(t, home, "main")
+	now := time.Now()
+	addSession(t, db, "live", "s-live", "", "", "done", now.Add(-time.Hour))
+	addEvent(t, db, "s-live", 1, "assistant", `{"message":{"role":"assistant","content":"hi"}}`, now.Add(-time.Hour), false)
+	// Newer but archived: must not drive state or last activity.
+	addSession(t, db, "gone", "s-gone", "", "", "done", now)
+	addEvent(t, db, "s-gone", 1, "assistant", toolCall, now, false)
+	mustExec(t, db, `UPDATE session_nodes SET archived_at = 1 WHERE session_key = 'gone'`)
+
+	snap, err := readAgentSQLite(state.AgentDBPath(home, "main"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snap.state != "idle" || snap.timestamp != now.Add(-time.Hour).UnixMilli()/1000 {
+		t.Errorf("got state %q ts %d; want idle from the live session", snap.state, snap.timestamp)
+	}
+}
+
+func TestAgentCollector_BrokenDBSkipsAgent(t *testing.T) {
+	home := t.TempDir()
+	path := state.AgentDBPath(home, "main")
+	writeFile(t, path, "not a sqlite database")
+	// A legacy session file must not be reported for an agent whose DB exists.
+	writeFile(t, filepath.Join(home, "agents", "main", "sessions", "old.jsonl"), "{}")
+	if got := gather(t, NewAgentCollector(home)); got[`openclaw_agent_sessions{agent_name="main"}`] != 0 || len(got) != 1 {
+		t.Errorf("want only openclaw_active_sessions, got %v", got)
+	}
+}
+
 func TestAgentCollector_SQLiteSessionCounts(t *testing.T) {
 	home := t.TempDir()
 	db := newAgentDB(t, home, "ops")

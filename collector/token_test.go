@@ -103,3 +103,26 @@ func TestLoadSessions_InvalidJSON_ReturnsNil(t *testing.T) {
 		t.Errorf("expected nil for invalid JSON, got %v", sessions)
 	}
 }
+
+func TestCronName(t *testing.T) {
+	for _, tt := range []struct {
+		s    sessionEntry
+		want string
+	}{
+		{sessionEntry{Label: "Automation: Daily digest"}, "Daily digest"},
+		{sessionEntry{Label: "Cron: Nightly"}, "Nightly"},
+		{sessionEntry{DisplayName: "Shown", SessionKey: "cron:abc"}, "Shown"},
+		{sessionEntry{SessionKey: "agent:main:cron:job42:run:7"}, "job42"},
+		{sessionEntry{SessionKey: "cron:job9"}, "job9"},
+	} {
+		if got := tt.s.cronName(); got != tt.want {
+			t.Errorf("cronName(%+v) = %q, want %q", tt.s, got, tt.want)
+		}
+	}
+	if !(sessionEntry{SessionKey: "agent:ops:cron:x"}).isCron() {
+		t.Error("cron session key not detected as cron")
+	}
+	if (sessionEntry{SessionKey: "agent:main:chat"}).isCron() {
+		t.Error("chat session detected as cron")
+	}
+}
