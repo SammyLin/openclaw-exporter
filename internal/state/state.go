@@ -52,10 +52,18 @@ func OpenRO(path string) (*sql.DB, error) {
 	if !Exists(path) {
 		return nil, fmt.Errorf("open %s: %w", path, os.ErrNotExist)
 	}
+	query := "mode=ro&_pragma=busy_timeout(2000)&_pragma=query_only(1)"
+	if !sidecarsExist(path) {
+		// No -wal/-shm means no live writer (the gateway keeps -shm while it
+		// has the DB open). In that state SQLite would try to create -shm for
+		// a WAL database and fail on a read-only mount (SQLITE_READONLY_DIRECTORY),
+		// so open it immutable instead.
+		query += "&immutable=1"
+	}
 	dsn := (&url.URL{
 		Scheme:   "file",
 		Path:     path,
-		RawQuery: "mode=ro&_pragma=busy_timeout(2000)&_pragma=query_only(1)",
+		RawQuery: query,
 	}).String()
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
@@ -63,6 +71,12 @@ func OpenRO(path string) (*sql.DB, error) {
 	}
 	db.SetMaxOpenConns(1)
 	return db, nil
+}
+
+func sidecarsExist(path string) bool {
+	_, errWAL := os.Stat(path + "-wal")
+	_, errSHM := os.Stat(path + "-shm")
+	return errWAL == nil || errSHM == nil
 }
 
 // ListAgents returns agents found under <home>/agents, sorted by ID.

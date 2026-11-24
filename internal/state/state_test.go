@@ -50,6 +50,39 @@ func TestOpenROReadsWALDatabase(t *testing.T) {
 	}
 }
 
+// A WAL DB on a read-only directory with no -shm (gateway stopped, Docker
+// :ro mount) must still be readable.
+func TestOpenROReadOnlyDirWithoutSidecars(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "openclaw.sqlite")
+	w, err := sql.Open("sqlite", "file:"+path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{"PRAGMA journal_mode=WAL", "CREATE TABLE t (v TEXT)", "INSERT INTO t VALUES ('ok')"} {
+		if _, err := w.Exec(q); err != nil {
+			t.Fatal(q, err)
+		}
+	}
+	w.Close() // last connection: checkpoints and removes -wal/-shm
+	os.Remove(path + "-wal")
+	os.Remove(path + "-shm")
+	if err := os.Chmod(dir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
+
+	r, err := OpenRO(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	var v string
+	if err := r.QueryRow("SELECT v FROM t").Scan(&v); err != nil || v != "ok" {
+		t.Fatalf("got %q, %v", v, err)
+	}
+}
+
 func TestOpenROMissing(t *testing.T) {
 	if _, err := OpenRO(filepath.Join(t.TempDir(), "nope.sqlite")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("want ErrNotExist, got %v", err)
